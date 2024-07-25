@@ -7,12 +7,12 @@ import asyncio
 def create_template_keyboard():
     keyboard = ReplyKeyboardMarkup(
         [
-            [KeyboardButton("+++ Добавить критерий +++")],
-            [KeyboardButton("+++ Добавить множитель +++")],
-            [KeyboardButton("+++ Добавить условие +++")],
+            [KeyboardButton("+ Добавить критерий"), KeyboardButton("- Удалить критерий")],
+            [KeyboardButton("+ Добавить множитель"), KeyboardButton("- Удалить множитель")],
+            [KeyboardButton("+ Добавить условие"), KeyboardButton("- Удалить условие")],
             [KeyboardButton("Протестировать шаблон")],
             [KeyboardButton("Сохранить шаблон")],
-            [KeyboardButton("Выйти")],
+            [KeyboardButton("Выйти без сохранения")],
         ],
         resize_keyboard=True  # Уменьшение размера кнопок
     )

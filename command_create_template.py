@@ -78,18 +78,17 @@ def create_template_main(client, message, add_template):
                 description, score_per_hour, comment_bool = criterion
                 if comment_bool:
                     output_criterions.append(
-                        f"{description}:\n"
+                        f"• {description}:\n"
                         f"{random_hours} hours = {score_per_hour * random_hours} scores\n"
                         f"Комментарий: Сегодня я нашел время и потратил на это {random_hours} hours.\n"
                     )
                 else:
                     output_criterions.append(
-                        f"{description}:\n"
+                        f"•{description}:\n"
                         f"{random_hours} hours = {score_per_hour * random_hours} scores\n")
 
             else:
-                output_criterions.append(
-                    f"Criterion {crit_num + 1} is missing or incomplete.")
+                pass
 
         user_id = message.from_user.id
         # Соединяем все строки в одну с помощью join
