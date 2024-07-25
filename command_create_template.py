@@ -4,6 +4,7 @@ from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMa
 import sqlite3
 import asyncio
 import keyboards
+import random
 
 user_states = {}  # Хранение состояния пользователей
 user_criterion_dict = {}
@@ -44,6 +45,7 @@ def create_template_main(client, message, add_template):
         user_id = message.from_user.id
         criterion = await ask_question(client, user_id, "Введите новый критерий (Например: Изучение Python):")
         criterion_scores = await ask_question(client, user_id, "Обозначьте количество получаемых баллов за 1 час деятельности по этому критерию (Например: 1.5)")
+        criterion_scores = float(criterion_scores)
         need_comment = await ask_question(client, user_id, f"Нужна ли будет возможность комментирования критерия?\n"
                                                            f"Отправьте 1 - если нужна\n"
                                                            f"0 - если не нужна.\n")
@@ -63,20 +65,42 @@ def create_template_main(client, message, add_template):
         global criterion_num
         output_criterions = []
 
+        def random_hours_func():
+            random_hours = random.randint(1, 10)
+            return random_hours
+
         # Количество критериев
         print(criterion_num)
         for crit_num in range(criterion_num):
-            output_criterions.append(f"{user_criterion_dict[f'criterion_{crit_num + 1}']}: 3 hours ="
-                                    f" {user_criterion_dict[f'criterion_{crit_num + 1}']} scores\n")
+            random_hours = random_hours_func()
+            criterion = user_criterion_dict.get(f'criterion_{crit_num + 1}')
+            if criterion:
+                description, score_per_hour, comment_bool = criterion
+                if comment_bool:
+                    output_criterions.append(
+                        f"{description}:\n"
+                        f"{random_hours} hours = {score_per_hour * random_hours} scores\n"
+                        f"Комментарий: Сегодня я нашел время и потратил на это {random_hours} hours.\n"
+                    )
+                else:
+                    output_criterions.append(
+                        f"{description}:\n"
+                        f"{random_hours} hours = {score_per_hour * random_hours} scores\n")
+
+            else:
+                output_criterions.append(
+                    f"Criterion {crit_num + 1} is missing or incomplete.")
 
         user_id = message.from_user.id
+        # Соединяем все строки в одну с помощью join
+        result = "\n".join(output_criterions)
+
         await client.send_message(user_id, f"Отчет: {message.from_user.first_name}\n"
                                            f"........................\n"
-                                           f"{output for output in output_criterions}")
+                                           f"{result}")
                                            # f"Сумма баллов за сегодня: {count_scores - ((float(answers['timeout_time']))) / 2} scores\n"
                                            # f"Общая сумма баллов: {float(answers['global_scores']) + count_scores - minus_5_scores_val(minus_5_scores_get_or_not(answers), answers) - (float(answers['timeout_time']) / 2)} scores")
 
-        await client.send_message(user_id, f'Внешний вид отчета таков, долбоеб ебаный, иди нахуй!')
         print(user_criterion_dict)
 
     @client.on_message(filters.text & filters.regex("Выйти"))
