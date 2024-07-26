@@ -7,8 +7,7 @@ def create_db():
 
     # Создание таблицы пользователей
     cursor.execute('''CREATE TABLE IF NOT EXISTS users (
-        user_id INTEGER PRIMARY KEY,
-        name TEXT
+        user_id INTEGER PRIMARY KEY
     )''')
 
     # Создание таблицы шаблонов

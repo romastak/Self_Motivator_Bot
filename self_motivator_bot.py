@@ -3,7 +3,7 @@ from pyrogram import Client, idle, filters
 from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, BotCommand
 from pyrogram.errors import FloodWait
 import asyncio
-import db, command_about, command_example, command_create_report, command_create_template, command_get_templates, keyboards
+ import db, command_about, command_example, command_create_report, command_create_template, command_get_templates, keyboards
 import sqlite3
 
 bot_token = "7266990703:AAE58wOTTLQsAU05jV0Exh8ODRz29ljqSMM"
@@ -34,9 +34,7 @@ user_id = 0
 db.create_db()
 
 command_about.about_main(client, message)
-
 command_example.example_main(client, message)
-
 command_create_report.create_report_main(client, message)
 
 question = None
