@@ -19,6 +19,13 @@ once_mnoj_is_exist = False
 
 scores_sum = float(0)
 
+def add_template(user_id, question, response_type):
+    conn = sqlite3.connect('reports.db')
+    cursor = conn.cursor()
+    cursor.execute('INSERT INTO templates (user_id, question, response_type) VALUES (?, ?, ?)', (user_id, question, response_type))
+    conn.commit()
+    conn.close()
+
 def comment_in_report(need_comment):
     if int(need_comment):
         need_comment = True
@@ -26,8 +33,8 @@ def comment_in_report(need_comment):
         need_comment = False
     return need_comment
 
-def create_template_main(client, message, add_template):
-    global user_states, criterion_num, user_criterion_dict, once_crit_is_exist, once_mnoj_is_exist, scores_sum
+def create_template_main(client, message):
+    global user_states, criterion_num, user_criterion_dict, once_crit_is_exist, once_mnoj_is_exist, scores_sum, user_mnojitel_dict
 
     @client.on_message(filters.text & filters.regex("Создать шаблон"))
     async def create_template(client, message):
@@ -221,6 +228,58 @@ def create_template_main(client, message, add_template):
             scores_sum = 0
             print(user_criterion_dict)
 
+    # Функция для сохранения шаблона в БД
+    def save_template_to_db(user_id, template_name):
+        conn = sqlite3.connect('reports.db')
+        cursor = conn.cursor()
+
+        # Добавление нового шаблона
+        cursor.execute('''INSERT INTO user_template (user_id, key_for_generating, template_name) 
+                          VALUES (?, ?, ?)''', (user_id, random.randint(1, 10000000000), template_name))
+        user_template_id = cursor.lastrowid
+
+        # Добавление структуры шаблона, критериев и множителей
+        cursor.execute('''INSERT INTO template_structure (user_template_id) VALUES (?)''', (user_template_id,))
+        template_structure_id = cursor.lastrowid
+
+        for crit_key, crit_value in user_criterion_dict.items():
+            description, score_per_hour, comment_bool = crit_value
+            cursor.execute('''INSERT INTO template_critery (template_structure_id, critery_name, critery_score, critery_comment)
+                              VALUES (?, ?, ?, ?)''',
+                           (template_structure_id, description, score_per_hour, int(comment_bool)))
+
+        for mnoj_key, mnoj_value in user_mnojitel_dict.items():
+            description, mnoj_scores, comment_bool = mnoj_value
+            cursor.execute('''INSERT INTO template_mnojitel (template_structure_id, mnojitel_name, mnojitel_score, mnojitel_comment)
+                              VALUES (?, ?, ?, ?)''',
+                           (template_structure_id, description, mnoj_scores, int(comment_bool)))
+
+        conn.commit()
+        conn.close()
+
+    # Процесс сохранения шаблона в интерфейсе телеграма
+    @client.on_message(filters.text & filters.regex("Сохранить шаблон"))
+    async def save_template(client, message):
+        global user_criterion_dict, user_mnojitel_dict
+        user_id = message.from_user.id
+
+        if not user_criterion_dict:
+            await message.reply_text("• Ваш шаблон пуст. Добавьте хотя бы один критерий или условие.")
+            return
+
+        # Запрос названия для шаблона
+        await message.reply_text("Введите название для вашего шаблона:")
+        user_states[user_id] = asyncio.Future()
+        template_name = await user_states[user_id]
+
+        # Сохранение шаблона в базе данных
+        save_template_to_db(user_id, template_name)
+
+        # Очистка данных после сохранения
+        user_criterion_dict = {}
+        user_mnojitel_dict = {}
+
+        await message.reply_text(f"Шаблон '{template_name}' успешно сохранен.", reply_markup=keyboards.main_keyboard())
 
     @client.on_message(filters.text & filters.regex("Выйти"))
     async def quit_template(client, message):
