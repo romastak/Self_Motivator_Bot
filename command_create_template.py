@@ -44,10 +44,10 @@ def create_template_main(client, message):
         # Проверка наличия пользователя в базе данных
         conn = sqlite3.connect('reports.db')
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
+        cursor.execute('SELECT * FROM user WHERE user_id = ?', (user_id,))
         user = cursor.fetchone()
         if not user:
-            cursor.execute('INSERT INTO users (user_id, name) VALUES (?, ?)', (user_id, message.from_user.first_name))
+            cursor.execute('INSERT INTO user (user_id, name) VALUES (?, ?)', (user_id, message.from_user.first_name))
             conn.commit()
         conn.close()
 

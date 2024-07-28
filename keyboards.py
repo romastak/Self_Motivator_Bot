@@ -29,3 +29,7 @@ def main_keyboard():
         resize_keyboard=True  # Уменьшение размера кнопок
     )
     return keyboard
+
+def user_templates_keyboard(templates_list):
+    keyboard = InlineKeyboardMarkup([templates_list])  # Уменьшение размера кнопок
+    return keyboard

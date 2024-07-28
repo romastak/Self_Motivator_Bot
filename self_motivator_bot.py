@@ -37,12 +37,12 @@ db.create_db()
 # Функции для выполнения команд из клавиатуры телеграма
 command_about.about_main(client, message)
 command_example.example_main(client, message)
-# command_create_report.create_report_main(client)
-# command_get_templates.get_templates(client, message)
+command_get_templates.get_templates(client)
 
 # question = None
 # response_type = None
 # add_template_func = command_create_template.add_template(user_id, question, response_type)
+# command_create_report.create_report_main(client)
 command_create_template.create_template_main(client, message)
 
 
