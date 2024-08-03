@@ -1,15 +1,15 @@
 import tgcrypto
 from pyrogram import Client, idle, filters
 from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
-import sqlite3
 import asyncio
 import keyboards
 import random
+import psycopg2
+from db import get_connection_and_cursor_vars
 
-user_states = {}  # Хранение состояния пользователей
-
-user_criterion_dict = {}
-user_mnojitel_dict = {}
+user_states = {}  # Глобальное хранение состояния пользователей
+user_criterion_dict = {} # Хранение элементов критерия из конструктора для каждого пользователя
+user_mnojitel_dict = {} # Хранение элементов множителя из конструктора для каждого пользователя
 
 criterion_num = 0
 mnojitel_num = 0
@@ -19,13 +19,12 @@ once_mnoj_is_exist = False
 
 scores_sum = float(0)
 
-def add_template(user_id, question, response_type):
-    conn = sqlite3.connect('reports.db')
-    cursor = conn.cursor()
-    cursor.execute('INSERT INTO templates (user_id, question, response_type) VALUES (?, ?, ?)', (user_id, question, response_type))
-    conn.commit()
-    conn.close()
+# Добавляем шаблон в базу
+def add_template(user_id, question, response_type, connection, cursor):
+    cursor.execute('INSERT INTO _templates (user_id, question, response_type) VALUES (?, ?, ?)', (user_id, question, response_type))
+    connection.commit()
 
+# Нужна ли возможность комментирования элемента в шаблоне, преобразование в булавку
 def comment_in_report(need_comment):
     if int(need_comment):
         need_comment = True
@@ -33,24 +32,29 @@ def comment_in_report(need_comment):
         need_comment = False
     return need_comment
 
+# Вход и работа с конструктором шаблонов
 def create_template_main(client, message):
-    global user_states, criterion_num, user_criterion_dict, once_crit_is_exist, once_mnoj_is_exist, scores_sum, user_mnojitel_dict
+    global user_states, criterion_num, user_criterion_dict, once_crit_is_exist, once_mnoj_is_exist, scores_sum,\
+        user_mnojitel_dict
 
     @client.on_message(filters.text & filters.regex("Создать шаблон"))
     async def create_template(client, message):
-        user_id = message.from_user.id
+
+        connection, cursor = get_connection_and_cursor_vars()
+
+        user_id = str(message.from_user.id)
+        username = str(message.from_user.first_name)
         answers = {}
 
         # Проверка наличия пользователя в базе данных
-        conn = sqlite3.connect('reports.db')
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM user WHERE user_id = ?', (user_id,))
+        cursor.execute('SELECT * FROM public.user WHERE tg_id = %s', (user_id,))
         user = cursor.fetchone()
+        # Если нет, добавляем строку
         if not user:
-            cursor.execute('INSERT INTO user (user_id, name) VALUES (?, ?)', (user_id, message.from_user.first_name))
-            conn.commit()
-        conn.close()
+            cursor.execute('INSERT INTO public.user (tg_id, username) VALUES (%s, %s)', (user_id, username))
+            connection.commit()
 
+        # Выводим клавиатуру конструктора шаблонов
         keyboard = keyboards.create_template_keyboard()
         await message.reply_text("Вы вошли в конструктор шаблонов.", reply_markup=keyboard)
 
@@ -72,6 +76,7 @@ def create_template_main(client, message):
                                                            f"• 1 - если нужна\n"
                                                            f"• 0 - если не нужна.\n")
 
+        # Преобразование выбора комментирования элемента в булавку
         need_comment_var = comment_in_report(need_comment)
 
         criterion_num += 1
@@ -213,7 +218,6 @@ def create_template_main(client, message):
                                                    f"• Глобальная сумма баллов: {(float(random.randint(20, 200)) + scores_sum) * mnoj_scores}"
                                           )
 
-
             else:
                 await client.send_message(user_id, f"Отчет: {message.from_user.first_name}\n"
                                                    f"........................\n"
@@ -230,70 +234,79 @@ def create_template_main(client, message):
 
     # Функция для сохранения шаблона в БД
     def save_template_to_db(user_id, template_name):
-        conn = sqlite3.connect('reports.db')
-        cursor = conn.cursor()
+
+        connection, cursor = get_connection_and_cursor_vars()
 
         # Добавление нового шаблона
         cursor.execute('''INSERT INTO user_template (user_id, key_for_generating, template_name) 
-                          VALUES (?, ?, ?)''', (user_id, random.randint(1, 10000000000), template_name))
+                          VALUES (?, ?, ?)''', (user_id, random.randint(1, 1000000000000000), template_name))
         user_template_id = cursor.lastrowid
 
-        # Добавление структуры шаблона, критериев и множителей
+        # Добавление структуры шаблона
         cursor.execute('''INSERT INTO template_structure (user_template_id) VALUES (?)''', (user_template_id,))
         template_structure_id = cursor.lastrowid
 
+        # Получение из словаря созданных критериев и запись в поля
         for crit_key, crit_value in user_criterion_dict.items():
             description, score_per_hour, comment_bool = crit_value
             cursor.execute('''INSERT INTO template_critery (template_structure_id, critery_name, critery_score, critery_comment)
                               VALUES (?, ?, ?, ?)''',
                            (template_structure_id, description, score_per_hour, int(comment_bool)))
 
+        # Множители
         for mnoj_key, mnoj_value in user_mnojitel_dict.items():
             description, mnoj_scores, comment_bool = mnoj_value
             cursor.execute('''INSERT INTO template_mnojitel (template_structure_id, mnojitel_name, mnojitel_score, mnojitel_comment)
                               VALUES (?, ?, ?, ?)''',
                            (template_structure_id, description, mnoj_scores, int(comment_bool)))
 
-        conn.commit()
-        conn.close()
+        connection.commit()
 
     # Процесс сохранения шаблона в интерфейсе телеграма
     @client.on_message(filters.text & filters.regex("Сохранить шаблон"))
     async def save_template(client, message):
         global user_criterion_dict, user_mnojitel_dict
+
+        connection, cursor = get_connection_and_cursor_vars()
+
         user_id = message.from_user.id
 
         if not user_criterion_dict:
             await message.reply_text("• Ваш шаблон пуст. Добавьте хотя бы один критерий или условие.")
             return
+        else:
+            # Запрос названия для шаблона
+            template_name = await ask_question(client, user_id, "Введите название для вашего шаблона:")
 
-        # Запрос названия для шаблона
-        await message.reply_text("Введите название для вашего шаблона:")
-        user_states[user_id] = asyncio.Future()
-        template_name = await user_states[user_id]
+            # Сохранение шаблона в базе данных
+            save_template_to_db(user_id, template_name)
 
-        # Сохранение шаблона в базе данных
-        save_template_to_db(user_id, template_name)
+            # Очистка данных после сохранения
+            user_criterion_dict = {}
+            user_mnojitel_dict = {}
 
-        # Очистка данных после сохранения
-        user_criterion_dict = {}
-        user_mnojitel_dict = {}
+            # Информационное сообщение и выход в главное меню, сохранение в БД
+            connection.commit()
+            connection.close()
+            await message.reply_text(f"Шаблон '{template_name}' успешно сохранен.", reply_markup=keyboards.main_keyboard())
 
-        await message.reply_text(f"Шаблон '{template_name}' успешно сохранен.", reply_markup=keyboards.main_keyboard())
-
-    @client.on_message(filters.text & filters.regex("Выйти"))
+    @client.on_message(filters.text & filters.regex("Выйти без сохранения"))
     async def quit_template(client, message):
         global user_criterion_dict
+
+        connection, _ = get_connection_and_cursor_vars()
+
         user_criterion_dict = {}
         user_mnojitel_dict = {}
+        connection.close()
         await message.reply_text("Вы вышли из конструктора шаблонов.", reply_markup=keyboards.main_keyboard())
 
+    # Функции для сообщения от бота, ожидания ответа и запись ответа в переменную, которая присваивается вызываемой функции
     async def ask_question(client, user_id, question):
         await client.send_message(user_id, question)
         user_states[user_id] = asyncio.Future()
         response = await user_states[user_id]
         return response
-
     @client.on_message(filters.private)
     async def receive_response(client, message):
         user_id = message.from_user.id

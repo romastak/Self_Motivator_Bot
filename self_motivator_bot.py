@@ -4,7 +4,6 @@ from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, BotCommand
 from pyrogram.errors import FloodWait
 import asyncio
 import db, command_about, command_example, command_create_report, command_create_template, command_get_templates, keyboards
-import sqlite3
 
 bot_token = "7266990703:AAE58wOTTLQsAU05jV0Exh8ODRz29ljqSMM"
 api_id = "27421113"
@@ -32,12 +31,12 @@ message = 0
 user_id = 0
 
 # Создаем таблицы БД если они отсутствуют
-db.create_db()
+db.create_db_if_not_exist(db.connection, db.cursor)
 
 # Функции для выполнения команд из клавиатуры телеграма
 command_about.about_main(client, message)
 command_example.example_main(client, message)
-command_get_templates.get_templates(client)
+command_get_templates.get_templates(client, db.connection, db.cursor)
 
 # question = None
 # response_type = None

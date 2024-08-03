@@ -1,13 +1,13 @@
 import sqlite3
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from db import get_connection_and_cursor_vars
 
-def get_templates(client: Client):
+
+def get_templates(client: Client, connection, cursor):
     @client.on_message(filters.text & filters.regex("Просмотреть шаблоны"))
     async def list_templates(client: Client, message):
         user_id = message.from_user.id
-        conn = sqlite3.connect('reports.db')
-        cursor = conn.cursor()
 
         cursor.execute('''SELECT user_template_id, template_name FROM user_template WHERE user_id = ?''', (user_id,))
         templates = cursor.fetchall()
