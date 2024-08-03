@@ -53,7 +53,7 @@ def create_db_if_not_exist(connection, cursor):
             "user",
             '''CREATE TABLE "user" (
                 id SERIAL PRIMARY KEY,
-                tg_id TEXT,
+                telegram_id BIGINT,
                 username TEXT
             );'''
         )
@@ -64,9 +64,9 @@ def create_db_if_not_exist(connection, cursor):
             "user_template",
             '''CREATE TABLE user_template (
                 id SERIAL PRIMARY KEY,
-                user_id INTEGER,
-                template_name CHAR NOT NULL,
-                key_for_generating INTEGER,
+                user_id INT NOT NULL, 
+                template_name TEXT,
+                key_for_generating TEXT,
                 FOREIGN KEY (user_id) REFERENCES "user" (id)
             );'''
         )
@@ -77,7 +77,7 @@ def create_db_if_not_exist(connection, cursor):
             "template_structure",
             '''CREATE TABLE template_structure (
                 id SERIAL PRIMARY KEY,
-                user_template_id INTEGER,
+                user_template_id INT NOT NULL,
                 FOREIGN KEY (user_template_id) REFERENCES user_template (id)
             );'''
         )
@@ -88,10 +88,10 @@ def create_db_if_not_exist(connection, cursor):
             "template_critery",
             '''CREATE TABLE template_critery (
                 id SERIAL PRIMARY KEY,
-                template_structure_id INTEGER,
-                critery_name CHAR,
-                critery_score FLOAT,
-                critery_comment INTEGER,
+                template_structure_id INT NOT NULL,
+                critery_name TEXT,
+                critery_score TEXT,
+                critery_comment TEXT,
                 FOREIGN KEY (template_structure_id) REFERENCES template_structure (id)
             );'''
         )
@@ -102,10 +102,10 @@ def create_db_if_not_exist(connection, cursor):
             "template_mnojitel",
             '''CREATE TABLE template_mnojitel (
                 id SERIAL PRIMARY KEY,
-                template_structure_id INTEGER,
-                mnojitel_name CHAR,
-                mnojitel_score FLOAT,
-                mnojitel_comment INTEGER,
+                template_structure_id INT NOT NULL,
+                mnojitel_name TEXT,
+                mnojitel_score TEXT,
+                mnojitel_comment TEXT,
                 FOREIGN KEY (template_structure_id) REFERENCES template_structure (id)
             );'''
         )

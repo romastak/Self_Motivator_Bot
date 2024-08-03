@@ -19,11 +19,6 @@ once_mnoj_is_exist = False
 
 scores_sum = float(0)
 
-# Добавляем шаблон в базу
-def add_template(user_id, question, response_type, connection, cursor):
-    cursor.execute('INSERT INTO _templates (user_id, question, response_type) VALUES (?, ?, ?)', (user_id, question, response_type))
-    connection.commit()
-
 # Нужна ли возможность комментирования элемента в шаблоне, преобразование в булавку
 def comment_in_report(need_comment):
     if int(need_comment):
@@ -42,16 +37,16 @@ def create_template_main(client, message):
 
         connection, cursor = get_connection_and_cursor_vars()
 
-        user_id = str(message.from_user.id)
+        telegram_id = str(message.from_user.id)
         username = str(message.from_user.first_name)
         answers = {}
 
         # Проверка наличия пользователя в базе данных
-        cursor.execute('SELECT * FROM public.user WHERE tg_id = %s', (user_id,))
+        cursor.execute('SELECT * FROM public.user WHERE telegram_id = %s', (telegram_id,))
         user = cursor.fetchone()
         # Если нет, добавляем строку
         if not user:
-            cursor.execute('INSERT INTO public.user (tg_id, username) VALUES (%s, %s)', (user_id, username))
+            cursor.execute('INSERT INTO public.user (telegram_id, username) VALUES (%s, %s)', (telegram_id, username))
             connection.commit()
 
         # Выводим клавиатуру конструктора шаблонов
@@ -238,29 +233,29 @@ def create_template_main(client, message):
         connection, cursor = get_connection_and_cursor_vars()
 
         # Добавление нового шаблона
-        cursor.execute('''INSERT INTO user_template (user_id, key_for_generating, template_name) 
-                          VALUES (?, ?, ?)''', (user_id, random.randint(1, 1000000000000000), template_name))
-        user_template_id = cursor.lastrowid
+        # table_user_primary_key = cursor.execute('''SELECT id FROM "user" WHERE telegram_id = (%s)''', (user_id)) \\ TODO CHECK LATER, maybe need to del
+        cursor.execute('''INSERT INTO user_template (user_id, template_name, key_for_generating)
+                            VALUES (%s, %s, %s)''', (int(table_user_primary_key), template_name, str(random.randint(1, 1000000000000000))))
 
-        # Добавление структуры шаблона
-        cursor.execute('''INSERT INTO template_structure (user_template_id) VALUES (?)''', (user_template_id,))
-        template_structure_id = cursor.lastrowid
+        # # Добавление структуры шаблона
+        # cursor.execute('''INSERT INTO template_structure (user_template_id)) VALUES (%s)''', (user_template_id,))
 
         # Получение из словаря созданных критериев и запись в поля
         for crit_key, crit_value in user_criterion_dict.items():
-            description, score_per_hour, comment_bool = crit_value
-            cursor.execute('''INSERT INTO template_critery (template_structure_id, critery_name, critery_score, critery_comment)
-                              VALUES (?, ?, ?, ?)''',
-                           (template_structure_id, description, score_per_hour, int(comment_bool)))
+            critery_name, critery_score, critery_comment = crit_value
+            cursor.execute('''INSERT INTO template_critery (critery_name, critery_score, critery_comment)
+                              VALUES (%s, %s, %s)''',
+                           (critery_name, critery_score, int(critery_comment)))
 
         # Множители
         for mnoj_key, mnoj_value in user_mnojitel_dict.items():
-            description, mnoj_scores, comment_bool = mnoj_value
-            cursor.execute('''INSERT INTO template_mnojitel (template_structure_id, mnojitel_name, mnojitel_score, mnojitel_comment)
-                              VALUES (?, ?, ?, ?)''',
-                           (template_structure_id, description, mnoj_scores, int(comment_bool)))
+            mnojitel_name, mnojitel_score, mnojitel_comment = mnoj_value
+            cursor.execute('''INSERT INTO template_mnojitel (mnojitel_name, mnojitel_score, mnojitel_comment)
+                              VALUES (%s, %s, %s)''',
+                           (mnojitel_name, mnojitel_score, int(mnojitel_comment)))
 
         connection.commit()
+        connection.close()
 
     # Процесс сохранения шаблона в интерфейсе телеграма
     @client.on_message(filters.text & filters.regex("Сохранить шаблон"))
@@ -286,8 +281,6 @@ def create_template_main(client, message):
             user_mnojitel_dict = {}
 
             # Информационное сообщение и выход в главное меню, сохранение в БД
-            connection.commit()
-            connection.close()
             await message.reply_text(f"Шаблон '{template_name}' успешно сохранен.", reply_markup=keyboards.main_keyboard())
 
     @client.on_message(filters.text & filters.regex("Выйти без сохранения"))
