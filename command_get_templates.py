@@ -7,23 +7,36 @@ from db import get_connection_and_cursor_vars
 def get_templates(client: Client, connection, cursor):
     @client.on_message(filters.text & filters.regex("Просмотреть шаблоны"))
     async def list_templates(client: Client, message):
-        user_id = message.from_user.id
 
-        cursor.execute('''SELECT user_template_id, template_name FROM user_template WHERE user_id = ?''', (user_id,))
+        telegram_id = message.from_user.id
+        connection, cursor = get_connection_and_cursor_vars()
+
+        # Получаем ид пользователя
+        cursor.execute('''SELECT id FROM "user" WHERE telegram_id = %s''', (telegram_id,))
+        user_id = cursor.fetchone()[0]
+
+        # Получаем имена и ид шаблонов
+        cursor.execute('''SELECT id, template_name FROM user_template WHERE user_id = %s''', (user_id,))
         templates = cursor.fetchall()
 
-        if not templates:
-            await message.reply_text("У вас нет сохраненных шаблонов.")
+        if user_id is None:
+            # Обработка случая, когда пользователь не найден
+            await message.reply("Пользователь не найден.")
+            cursor.close()
+            connection.close()
         else:
-            keyboard = InlineKeyboardMarkup(
-                [
-                    [InlineKeyboardButton(template_name, callback_data=f"template_{template_id}")]
-                    for template_id, template_name in templates
-                ]
-            )
-            await message.reply_text("Ваши шаблоны:", reply_markup=keyboard)
+            if not templates:
+                await message.reply_text("У вас нет сохраненных шаблонов.")
+            else:
+                keyboard = InlineKeyboardMarkup(
+                    [
+                        [InlineKeyboardButton(template_name, callback_data=f"template_{template_id}")]
+                        for template_id, template_name in templates
+                    ]
+                )
+                await message.reply_text("Ваши шаблоны:", reply_markup=keyboard)
 
-        conn.close()
+        connection.close()
 
     @client.on_callback_query(filters.regex(r"^template_\d+$"))
     async def select_template(client: Client, callback_query):

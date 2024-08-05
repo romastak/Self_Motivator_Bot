@@ -71,28 +71,17 @@ def create_db_if_not_exist(connection, cursor):
             );'''
         )
 
-        # Проверка и создание таблицы template_structure
-        check_table_exists_and_create(
-            cursor,
-            "template_structure",
-            '''CREATE TABLE template_structure (
-                id SERIAL PRIMARY KEY,
-                user_template_id INT NOT NULL,
-                FOREIGN KEY (user_template_id) REFERENCES user_template (id)
-            );'''
-        )
-
         # Проверка и создание таблицы template_critery
         check_table_exists_and_create(
             cursor,
             "template_critery",
             '''CREATE TABLE template_critery (
                 id SERIAL PRIMARY KEY,
-                template_structure_id INT NOT NULL,
+                user_template_id INT NOT NULL,
                 critery_name TEXT,
                 critery_score TEXT,
                 critery_comment TEXT,
-                FOREIGN KEY (template_structure_id) REFERENCES template_structure (id)
+                FOREIGN KEY (user_template_id) REFERENCES user_template (id)
             );'''
         )
 
@@ -102,11 +91,11 @@ def create_db_if_not_exist(connection, cursor):
             "template_mnojitel",
             '''CREATE TABLE template_mnojitel (
                 id SERIAL PRIMARY KEY,
-                template_structure_id INT NOT NULL,
+                user_template_id INT NOT NULL,
                 mnojitel_name TEXT,
                 mnojitel_score TEXT,
                 mnojitel_comment TEXT,
-                FOREIGN KEY (template_structure_id) REFERENCES template_structure (id)
+                FOREIGN KEY (user_template_id) REFERENCES user_template (id)
             );'''
         )
 

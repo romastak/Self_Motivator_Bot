@@ -10,8 +10,8 @@ from db import get_connection_and_cursor_vars
 user_states = {}  # Глобальное хранение состояния пользователей
 user_criterion_dict = {} # Хранение элементов критерия из конструктора для каждого пользователя
 user_mnojitel_dict = {} # Хранение элементов множителя из конструктора для каждого пользователя
+user_template_name_dict = {} # Хранение имен шаблонов при создании для каждого пользователя
 
-criterion_num = 0
 mnojitel_num = 0
 
 once_crit_is_exist = False
@@ -29,8 +29,10 @@ def comment_in_report(need_comment):
 
 # Вход и работа с конструктором шаблонов
 def create_template_main(client, message):
-    global user_states, criterion_num, user_criterion_dict, once_crit_is_exist, once_mnoj_is_exist, scores_sum,\
+    global user_states, user_criterion_dict, once_crit_is_exist, once_mnoj_is_exist, scores_sum,\
         user_mnojitel_dict
+
+    critery_num = 0
 
     @client.on_message(filters.text & filters.regex("Создать шаблон"))
     async def create_template(client, message):
@@ -56,26 +58,30 @@ def create_template_main(client, message):
     # Функция для добавления критерия в шаблон
     @client.on_message(filters.text & filters.regex("Добавить критерий"))
     async def add_criterion(client, message):
-        global criterion_num, once_crit_is_exist
+        global once_crit_is_exist, critery_num
+
+        critery_num += 1
+
         user_id = message.from_user.id
-        criterion = await ask_question(client, user_id, f"Введите новый критерий\n"
+        user_criterion_dict[user_id][f"critery_{critery_num}_name"] = await ask_question(client, user_id, f"Введите новый критерий\n"
                                                         f"• Например: Изучение Python")
-        criterion_scores = await ask_question(client, user_id, f"Обозначьте количество получаемых баллов за 1 час"
+        user_criterion_dict[user_id][f"critery_{critery_num}_score"] = await ask_question(client, user_id, f"Обозначьте количество получаемых баллов за 1 час"
                                                                f" деятельности по этому критерию\n"
                                                                f"• Например: 1.5\n"
                                                                f"• (Также можно ввести отрицательное число, тогда"
                                                                f" баллы за этот критерий будут вычитаться)")
-        criterion_scores = float(criterion_scores)
-        need_comment = await ask_question(client, user_id, f"Нужна ли будет возможность комментирования критерия?\n"
+        user_criterion_dict[user_id][f"critery_{critery_num}_score"] = float(user_criterion_dict[user_id][f"critery_{critery_num}_name"])
+
+        user_criterion_dict[user_id][f"critery_{critery_num}_comment"] = await ask_question(client, user_id, f"Нужна ли будет возможность комментирования критерия?\n"
                                                            f"Отправьте:\n"
                                                            f"• 1 - если нужна\n"
                                                            f"• 0 - если не нужна.\n")
 
         # Преобразование выбора комментирования элемента в булавку
+        need_comment_var = user_criterion_dict[user_id][f"critery_{critery_num}_comment"]
         need_comment_var = comment_in_report(need_comment)
 
-        criterion_num += 1
-        user_criterion_dict["criterion_" + str(criterion_num)] = [criterion, criterion_scores, need_comment_var]
+        user_criterion_dict["criterion_" + str(critery_num)] = [criterion, criterion_scores, need_comment_var]
         await client.send_message(user_id, f'Критерий "{criterion}" добавлен в шаблон.')
         once_crit_is_exist = True
         print(user_criterion_dict)
@@ -116,7 +122,7 @@ def create_template_main(client, message):
     # Функция для тестирования шаблона
     @client.on_message(filters.text & filters.regex("Протестировать шаблон"))
     async def add_criterion(client, message):
-        global criterion_num, mnojitel_num, scores_sum
+        global mnojitel_num, scores_sum
         user_id = message.from_user.id
         yes_or_no = ""
         output_criterions = []
@@ -228,31 +234,30 @@ def create_template_main(client, message):
             print(user_criterion_dict)
 
     # Функция для сохранения шаблона в БД
-    def save_template_to_db(user_id, template_name):
+    def save_template_to_db(telegram_id, template_name):
 
         connection, cursor = get_connection_and_cursor_vars()
 
         # Добавление нового шаблона
-        # table_user_primary_key = cursor.execute('''SELECT id FROM "user" WHERE telegram_id = (%s)''', (user_id)) \\ TODO CHECK LATER, maybe need to del
+        cursor.execute('SELECT id FROM "user" WHERE telegram_id = %s', (telegram_id,))
+        user_id = cursor.fetchone()[0]
         cursor.execute('''INSERT INTO user_template (user_id, template_name, key_for_generating)
-                            VALUES (%s, %s, %s)''', (int(table_user_primary_key), template_name, str(random.randint(1, 1000000000000000))))
-
-        # # Добавление структуры шаблона
-        # cursor.execute('''INSERT INTO template_structure (user_template_id)) VALUES (%s)''', (user_template_id,))
+                            VALUES (%s, %s, %s) RETURNING id''', (user_id, template_name, str(random.randint(1, 1000000000000000))))
+        user_template_id = cursor.fetchone()[0]
 
         # Получение из словаря созданных критериев и запись в поля
         for crit_key, crit_value in user_criterion_dict.items():
             critery_name, critery_score, critery_comment = crit_value
-            cursor.execute('''INSERT INTO template_critery (critery_name, critery_score, critery_comment)
-                              VALUES (%s, %s, %s)''',
-                           (critery_name, critery_score, int(critery_comment)))
+            cursor.execute('''INSERT INTO template_critery (user_template_id, critery_name, critery_score, critery_comment)
+                              VALUES (%s, %s, %s, %s)''',
+                           (user_template_id, critery_name, critery_score, int(critery_comment)))
 
         # Множители
         for mnoj_key, mnoj_value in user_mnojitel_dict.items():
             mnojitel_name, mnojitel_score, mnojitel_comment = mnoj_value
-            cursor.execute('''INSERT INTO template_mnojitel (mnojitel_name, mnojitel_score, mnojitel_comment)
-                              VALUES (%s, %s, %s)''',
-                           (mnojitel_name, mnojitel_score, int(mnojitel_comment)))
+            cursor.execute('''INSERT INTO template_mnojitel (user_template_id, mnojitel_name, mnojitel_score, mnojitel_comment)
+                              VALUES (%s, %s, %s, %s)''',
+                           (user_template_id, mnojitel_name, mnojitel_score, int(mnojitel_comment)))
 
         connection.commit()
         connection.close()
@@ -264,21 +269,23 @@ def create_template_main(client, message):
 
         connection, cursor = get_connection_and_cursor_vars()
 
-        user_id = message.from_user.id
+        telegram_id = message.from_user.id
+
 
         if not user_criterion_dict:
             await message.reply_text("• Ваш шаблон пуст. Добавьте хотя бы один критерий или условие.")
             return
         else:
             # Запрос названия для шаблона
-            template_name = await ask_question(client, user_id, "Введите название для вашего шаблона:")
+            template_name = await ask_question(client, telegram_id, "Введите название для вашего шаблона:")
 
             # Сохранение шаблона в базе данных
-            save_template_to_db(user_id, template_name)
+            save_template_to_db(telegram_id, template_name)
 
             # Очистка данных после сохранения
             user_criterion_dict = {}
             user_mnojitel_dict = {}
+            critery_num =
 
             # Информационное сообщение и выход в главное меню, сохранение в БД
             await message.reply_text(f"Шаблон '{template_name}' успешно сохранен.", reply_markup=keyboards.main_keyboard())
