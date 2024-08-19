@@ -1,53 +1,32 @@
-import tgcrypto
-from pyrogram import Client, idle, filters
-from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, BotCommand
-from pyrogram.errors import FloodWait
+import logging
 import asyncio
-import db, command_about, command_example, command_create_report, command_create_template, command_get_templates, keyboards
 
-bot_token = "7266990703:AAE58wOTTLQsAU05jV0Exh8ODRz29ljqSMM"
-api_id = "27421113"
-api_hash = "d29afa242526c14a7870e1a65c2b79d8"
-app_name = "self_motivator_bot"
+from aiogram import Bot, Dispatcher
+from aiogram.filters import CommandStart # Команда /start
+from aiogram.types import Message
 
-# Создание объекта клиента
-client = Client(name=app_name, api_id=api_id, api_hash=api_hash, bot_token=bot_token)
-
-# Словарь для хранения состояний пользователей
-user_states = {}
-
-@client.on_message(filters.command("start"))
-def start(client, message):
-    # Отправка приветственного сообщения с клавиатурой
-    message.reply_text(
-        f"Добро пожаловать, {message.from_user.first_name}!\n"
-        f"Наша уникальная система мотивации предоставит вам возможность реализовать свои амбиции в полной мере.\n"
-        f"Чтобы узнать подробнее нажмите на кнопку <<О системе мотивации>>.",
-        reply_markup=keyboards.main_keyboard()
-    )
-
-# Просто определяем переменную
-message = 0
-user_id = 0
-
-# Создаем таблицы БД если они отсутствуют
-db.create_db_if_not_exist(db.connection, db.cursor)
-
-# Функции для выполнения команд из клавиатуры телеграма
-command_about.about_main(client, message)
-command_example.example_main(client, message)
-command_get_templates.get_templates(client, db.connection, db.cursor)
-
-# question = None
-# response_type = None
-# add_template_func = command_create_template.add_template(user_id, question, response_type)
-# command_create_report.create_report_main(client)
-command_create_template.create_template_main(client, message)
+from command_start import router_cmd_start
+from command_about import router_cmd_about
+from command_example import router_cmd_ex
+from command_create_template import router_cmd_cr_templ
 
 
+# Инициализация бота и диспетчера
+bot = Bot(token="7266990703:AAE58wOTTLQsAU05jV0Exh8ODRz29ljqSMM")
+dp = Dispatcher() # Это основной роутер, работа происходит через него, его задача обрабатывать updates
 
-# Запускаем клиент
-client.start()
+# Отправляет запросы на сервера телеграма, если ответы есть, сервер отдаст, если нет ответа, то метод будет ожидать ответа
+async def main():
+    dp.include_router(router_cmd_start)
+    dp.include_router(router_cmd_about)
+    dp.include_router(router_cmd_ex)
+    dp.include_router(router_cmd_cr_templ)
+    await dp.start_polling(bot)
 
-# Входим в режим прослушивания сообщений
-idle()
+# Запускаем бота
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Остановка бота")

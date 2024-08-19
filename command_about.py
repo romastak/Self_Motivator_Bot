@@ -1,14 +1,13 @@
-import tgcrypto
-from pyrogram import Client, idle, filters
-from pyrogram.types import ReplyKeyboardMarkup, KeyboardButton, BotCommand
-from pyrogram.errors import FloodWait
-import asyncio
+from aiogram.types import Message
+from aiogram import F, Router
 
-def about_main(client, message):
-    @client.on_message(filters.text & filters.regex("О системе мотивации"))
-    def about(client, message):
-        # Отправка сообщения о системе мотивации
-        message.reply_text(
-            "Наша система мотивации разработана для того, чтобы помочь вам достигать своих целей. "
-            "Используйте наш бот для создания отчетов и шаблонов, чтобы отслеживать ваш прогресс и оставаться на верном пути."
-        )
+
+router_cmd_about = Router()
+
+@router_cmd_about.message(F.text == "О системе мотивации") # Получена команда /help
+async def cmd_about(message: Message):
+    await message.answer(
+        "Наша система мотивации разработана для того, чтобы помочь вам достигать своих целей. "
+        "Используйте наш бот для создания отчетов и шаблонов,"
+        "чтобы отслеживать ваш прогресс и оставаться на верном пути."
+    )
