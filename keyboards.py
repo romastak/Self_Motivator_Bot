@@ -1,4 +1,5 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 
 def create_template_keyboard():
     keyboard = ReplyKeyboardMarkup(
@@ -26,11 +27,13 @@ def main_keyboard():
     )
     return keyboard
 
-def user_templates_keyboard(templates_list):
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=templates_list
-    )
-    return keyboard
+def delete_crit_keyboard(crits_list):
+    keyboard = InlineKeyboardBuilder()
+    n = 0
+    for el in crits_list:
+        keyboard.add(InlineKeyboardButton(text=el, callback_data=str("/crit_num_" + str(n))))
+        n += 1
+    return keyboard.adjust(1).as_markup() # Сколько будет кнопок в ряду
 
 def cancel_keyboard():
     keyboard = ReplyKeyboardMarkup(

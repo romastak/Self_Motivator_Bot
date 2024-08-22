@@ -9,7 +9,7 @@ from keyboards import main_keyboard
 from command_start import router_cmd_start
 from command_about import router_cmd_about
 from command_example import router_cmd_ex
-from command_create_template import router_cmd_cr_templ, router_cancel, router_cmd_save_templ
+from command_create_template import router_cmd_cr_templ, router_cancel, router_cmd_save_templ, router_cancel, router_cmd_delete_crit
 from requests import get_all_telegram_ids
 
 
@@ -24,6 +24,8 @@ async def main():
     dp.include_router(router_cmd_ex)
     dp.include_router(router_cmd_cr_templ)
     dp.include_router(router_cmd_save_templ)
+    dp.include_router(router_cancel)
+    dp.include_router(router_cmd_delete_crit)
     tg_ids = await get_all_telegram_ids()
 
     for id in tg_ids:

@@ -62,3 +62,5 @@ async def get_all_telegram_ids() -> list[int]:
             result = await session.execute(select(User.tg_id))
             telegram_ids = [row[0] for row in result.fetchall()]
     return telegram_ids
+
+

@@ -4,7 +4,7 @@ import random
 from aiogram.types import Message
 from aiogram.filters import Command
 from aiogram import F, Router
-from keyboards import main_keyboard, create_template_keyboard, cancel_keyboard
+from keyboards import main_keyboard, create_template_keyboard, cancel_keyboard, delete_crit_keyboard
 from aiogram.fsm.state import StatesGroup, State # Классы состояний
 from aiogram.fsm.context import FSMContext # Инструмент управления состояниями
 from requests import save_user_template
@@ -13,6 +13,7 @@ from requests import save_user_template
 router_cmd_cr_templ = Router()
 router_cmd_save_templ = Router()
 router_cancel = Router()
+router_cmd_delete_crit = Router()
 
 user_templates = {}
 
@@ -36,6 +37,8 @@ class Add_mnoj(StatesGroup):
 class SaveTemplate(StatesGroup):
     waiting_for_template_name = State()
 
+class CritDelete(StatesGroup):
+    which_crit_to_delete = State()
 
 
 @router_cmd_cr_templ.message(F.text == "Создать шаблон")
@@ -77,8 +80,7 @@ async def add_crit_two(message: Message, state: FSMContext):
         f"деятельности по этому критерию.\n"
         f"• Например: 1.5\n"
         f"• (Также можно ввести отрицательное число, тогда "
-        f"баллы за этот критерий будут вычитаться)",
-        reply_markup=cancel_keyboard()
+        f"баллы за этот критерий будут вычитаться)"
     )
 
 @router_cmd_cr_templ.message(Add_crit.score)
@@ -89,8 +91,7 @@ async def add_crit_three(message: Message, state: FSMContext):
         f"Нужна ли будет возможность комментирования критерия?\n"
         f"Отправьте:\n"
         f"• 1 - если нужна\n"
-        f"• 0 - если не нужна.\n",
-        reply_markup=cancel_keyboard()
+        f"• 0 - если не нужна.\n"
     )
 
 @router_cmd_cr_templ.message(Add_crit.comment)
@@ -140,8 +141,7 @@ async def add_mnoj_two(message: Message, state: FSMContext):
         f'при ответе "Нет".\n'
         f"• Например: 2\n"
         f"• (Также можно ввести например 0.5, тогда "
-        f"все баллы будут делиться на 2).",
-        reply_markup=cancel_keyboard()
+        f"все баллы будут делиться на 2)."
     )
 
 @router_cmd_cr_templ.message(Add_mnoj.score)
@@ -152,8 +152,7 @@ async def add_mnoj_three(message: Message, state: FSMContext):
         f"Нужна ли будет возможность комментирования множителя?\n"
         f"Отправьте:\n"
         f"• 1 - если нужна\n"
-        f"• 0 - если не нужна.\n",
-        reply_markup=cancel_keyboard()
+        f"• 0 - если не нужна.\n"
     )
 
 @router_cmd_cr_templ.message(Add_mnoj.comment)
@@ -322,6 +321,56 @@ async def cmd_test_templ(message: Message):
             )
 
         scores_sum_for_today = 0
+
+
+
+@router_cmd_delete_crit.message(F.text == "- Удалить критерий")
+async def cmd_delete_crit(message: Message, state: FSMContext):
+    telegram_id = message.from_user.id
+
+    if telegram_id in user_templates:
+        current_user_templ = user_templates.get(telegram_id)
+        current_user_crits = current_user_templ.get('crit')
+
+        if current_user_crits:
+            print('крит есть')
+            print(current_user_crits)
+            crits_list = []
+            for crit_name in current_user_crits:
+                clear_crit_name = crit_name.get('name')
+                crits_list.append(clear_crit_name)
+            await state.set_state(CritDelete.which_crit_to_delete)
+            await message.answer(text='Выберите критерий для удаления:', reply_markup=delete_crit_keyboard(crits_list))
+
+        else:
+            pass
+
+    else:
+        await message.answer('Вы не добавили ни одного критерия') # TODO func to del crits
+        state.clear()
+
+@router_cmd_delete_crit.message(CritDelete.which_crit_to_delete)
+async def cmd_delete_crit_done(message: Message, state: FSMContext):
+    await state.update_data(which_crit_to_delete=message)
+    crit_num_to_del = which_crit_to_delete[0][-1]
+
+    telegram_id = message.from_user.id
+
+    current_user_templ = user_templates.get(telegram_id)
+    current_user_crits = current_user_templ.get('crit')
+    current_user_crits.popitem(crit_num_to_del)
+
+    await state.clear()
+    await message.answer(f"Критерий удален.")
+
+
+
+
+
+
+
+
+
 
 
 
