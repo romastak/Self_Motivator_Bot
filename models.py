@@ -21,12 +21,12 @@ class User(Base):
     username: Mapped[str] = mapped_column(String)
 
 class UserTemplates(Base):
-    __tablename__ = 'user_templates'
-    id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
-    template_name: Mapped[str] = mapped_column(String)
+	__tablename__ = 'user_templates'
+	id: Mapped[int] = mapped_column(primary_key=True)
+	user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
+	template_name: Mapped[str] = mapped_column(String)
 	key_for_generating: Mapped[str] = mapped_column(String)
-	global_score: Mapped[float] = mapped_column()
+	global_score: Mapped[float] = mapped_column(nullable=True, default=0.0)
 
 class TemplateCrit(Base):
     __tablename__ = 'template_crit'
