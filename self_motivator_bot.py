@@ -5,10 +5,12 @@ from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart # Команда /start
 from aiogram.types import Message
 
+from keyboards import main_keyboard
 from command_start import router_cmd_start
 from command_about import router_cmd_about
 from command_example import router_cmd_ex
-from command_create_template import router_cmd_cr_templ
+from command_create_template import router_cmd_cr_templ, router_cancel, router_cmd_save_templ
+from requests import get_all_telegram_ids
 
 
 # Инициализация бота и диспетчера
@@ -21,6 +23,12 @@ async def main():
     dp.include_router(router_cmd_about)
     dp.include_router(router_cmd_ex)
     dp.include_router(router_cmd_cr_templ)
+    dp.include_router(router_cmd_save_templ)
+    tg_ids = await get_all_telegram_ids()
+
+    for id in tg_ids:
+        await bot.send_message(chat_id=id, text='Бот снова работает', reply_markup=main_keyboard())
+
     await dp.start_polling(bot)
 
 # Запускаем бота

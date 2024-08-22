@@ -4,14 +4,18 @@ import random
 from aiogram.types import Message
 from aiogram.filters import Command
 from aiogram import F, Router
-from keyboards import main_keyboard, create_template_keyboard
+from keyboards import main_keyboard, create_template_keyboard, cancel_keyboard
 from aiogram.fsm.state import StatesGroup, State # Классы состояний
 from aiogram.fsm.context import FSMContext # Инструмент управления состояниями
+from requests import save_user_template
 
 
 router_cmd_cr_templ = Router()
+router_cmd_save_templ = Router()
+router_cancel = Router()
 
 user_templates = {}
+
 
 # Классы FSMContext
 class Add_crit(StatesGroup): # Наследуемый класс состояний
@@ -28,6 +32,9 @@ class Add_mnoj(StatesGroup):
 #     name = State()
 #     score = State()
 #     comment = State()
+
+class SaveTemplate(StatesGroup):
+    waiting_for_template_name = State()
 
 
 
@@ -55,7 +62,8 @@ async def add_crit_one(message: Message, state: FSMContext):
     await state.set_state(Add_crit.name) # Установить состояние машины
     await message.answer(
         f"Введите новый критерий.\n"
-        f"• Например: Изучение Python"
+        f"• Например: Изучение Python",
+        reply_markup=cancel_keyboard()
     )
 
 # Здесь определяется роутер, эта функция запустится если состояние машины будет = name,
@@ -69,23 +77,25 @@ async def add_crit_two(message: Message, state: FSMContext):
         f"деятельности по этому критерию.\n"
         f"• Например: 1.5\n"
         f"• (Также можно ввести отрицательное число, тогда "
-        f"баллы за этот критерий будут вычитаться)"
+        f"баллы за этот критерий будут вычитаться)",
+        reply_markup=cancel_keyboard()
     )
 
 @router_cmd_cr_templ.message(Add_crit.score)
 async def add_crit_three(message: Message, state: FSMContext):
-    await state.update_data(score=message.text)
+    await state.update_data(score=float(message.text))
     await state.set_state(Add_crit.comment)
     await message.answer(
         f"Нужна ли будет возможность комментирования критерия?\n"
         f"Отправьте:\n"
         f"• 1 - если нужна\n"
-        f"• 0 - если не нужна.\n"
+        f"• 0 - если не нужна.\n",
+        reply_markup=cancel_keyboard()
     )
 
 @router_cmd_cr_templ.message(Add_crit.comment)
 async def add_crit_end(message: Message, state: FSMContext):
-    await state.update_data(comment=message.text)
+    await state.update_data(comment=int(message.text))
     data = await state.get_data() # возврат словаря с данными пользователя из машины состояний
     telegram_id = message.from_user.id
 
@@ -97,7 +107,7 @@ async def add_crit_end(message: Message, state: FSMContext):
     user_templates[telegram_id]["crit"].append(data)
 
     await state.clear()
-    await message.answer(f"Критерий < {data['name']} > успешно добавлен в шаблон.")
+    await message.answer(f"Критерий < {data['name']} > успешно добавлен в шаблон.", reply_markup=create_template_keyboard())
     print(user_templates)  # Для проверки в консоли
 
 
@@ -116,7 +126,8 @@ async def add_mnoj_one(message: Message, state: FSMContext):
         await state.set_state(Add_mnoj.name)
         await message.answer(
             f'Добавьте новый множитель на который можно ответить "Да" или "Нет".\n'
-            f'• Например: Курили ли вы?'
+            f'• Например: Курили ли вы?',
+            reply_markup=cancel_keyboard()
         )
 
 @router_cmd_cr_templ.message(Add_mnoj.name)
@@ -129,23 +140,25 @@ async def add_mnoj_two(message: Message, state: FSMContext):
         f'при ответе "Нет".\n'
         f"• Например: 2\n"
         f"• (Также можно ввести например 0.5, тогда "
-        f"все баллы будут делиться на 2)."
+        f"все баллы будут делиться на 2).",
+        reply_markup=cancel_keyboard()
     )
 
 @router_cmd_cr_templ.message(Add_mnoj.score)
 async def add_mnoj_three(message: Message, state: FSMContext):
-    await state.update_data(score=message.text)
+    await state.update_data(score=float(message.text))
     await state.set_state(Add_mnoj.comment)
     await message.answer(
         f"Нужна ли будет возможность комментирования множителя?\n"
         f"Отправьте:\n"
         f"• 1 - если нужна\n"
-        f"• 0 - если не нужна.\n"
+        f"• 0 - если не нужна.\n",
+        reply_markup=cancel_keyboard()
     )
 
 @router_cmd_cr_templ.message(Add_mnoj.comment)
 async def add_mnoj_end(message: Message, state: FSMContext):
-    await state.update_data(comment=message.text)
+    await state.update_data(comment=int(message.text))
     data = await state.get_data()
     telegram_id = message.from_user.id
 
@@ -157,7 +170,7 @@ async def add_mnoj_end(message: Message, state: FSMContext):
     user_templates[telegram_id]["mnoj"].append(data)
 
     await state.clear()
-    await message.answer(f"Множитель < {data['name']} > успешно добавлен в шаблон.")
+    await message.answer(f"Множитель < {data['name']} > успешно добавлен в шаблон.", reply_markup=create_template_keyboard())
     print(user_templates)  # Для проверки в консоли
 
 
@@ -322,145 +335,45 @@ async def cmd_exit(message: Message):
 
 
 
+@router_cancel.message(F.text == "Отмена")
+async def cmd_cancel(message: Message, state: FSMContext):
+    telegram_id = message.from_user.id
 
-#
-# async def on_start(message: types.Message, state: FSMContext):
-#     await message.answer("Добро пожаловать! Вы вошли в конструктор шаблонов.", reply_markup=keyboards.create_template_keyboard())
-#
-# async def create_template(message: types.Message):
-#     await message.answer("Введите новый критерий.", reply_markup=types.ReplyKeyboardRemove())
-#     await TemplateCreation.waiting_for_criterion_name.set()
-#
-# async def process_criterion_name(message: types.Message, state: FSMContext):
-#     await state.update_data(criterion_name=message.text)
-#     await message.answer("Обозначьте количество получаемых баллов за 1 час деятельности по этому критерию.")
-#     await TemplateCreation.waiting_for_criterion_score.set()
-#
-# async def process_criterion_score(message: types.Message, state: FSMContext):
-#     try:
-#         score = float(message.text)
-#         await state.update_data(criterion_score=score)
-#     except ValueError:
-#         await message.answer("Пожалуйста, введите корректное число.")
-#         return
-#     await message.answer("Нужна ли будет возможность комментирования критерия?\nОтправьте:\n• 1 - если нужна\n• 0 - если не нужна.")
-#     await TemplateCreation.waiting_for_criterion_comment.set()
-#
-# async def process_criterion_comment(message: types.Message, state: FSMContext):
-#     need_comment = message.text.strip() == "1"
-#     user_data = await state.get_data()
-#
-#     user_id = message.from_user.id
-#     user_criterion_dict[user_id] = {
-#         "criterion_name": user_data['criterion_name'],
-#         "criterion_score": user_data['criterion_score'],
-#         "criterion_comment": need_comment
-#     }
-#
-#     await message.answer(f'Критерий "{user_data["criterion_name"]}" добавлен в шаблон.',
-#                          reply_markup=keyboards.create_template_keyboard())
-#     await state.finish()
-#
-# async def add_multiplier(message: types.Message):
-#     if not user_criterion_dict:
-#         await message.answer("Сначала добавьте хотя бы один критерий.")
-#     else:
-#         await message.answer("Введите новый множитель на который можно ответить 'Да' или 'Нет'.")
-#         await TemplateCreation.waiting_for_multiplier_name.set()
-#
-# async def process_multiplier_name(message: types.Message, state: FSMContext):
-#     await state.update_data(multiplier_name=message.text)
-#     await message.answer("Введите число, на которое будут умножаться все заработанные баллы.")
-#     await TemplateCreation.waiting_for_multiplier_score.set()
-#
-# async def process_multiplier_score(message: types.Message, state: FSMContext):
-#     try:
-#         score = float(message.text)
-#         await state.update_data(multiplier_score=score)
-#     except ValueError:
-#         await message.answer("Пожалуйста, введите корректное число.")
-#         return
-#     await message.answer("Нужна ли будет возможность комментирования множителя?\nОтправьте:\n• 1 - если нужна\n• 0 - если не нужна.")
-#     await TemplateCreation.waiting_for_multiplier_comment.set()
-#
-# async def process_multiplier_comment(message: types.Message, state: FSMContext):
-#     need_comment = message.text.strip() == "1"
-#     user_data = await state.get_data()
-#
-#     user_id = message.from_user.id
-#     user_mnojitel_dict[user_id] = {
-#         "multiplier_name": user_data['multiplier_name'],
-#         "multiplier_score": user_data['multiplier_score'],
-#         "multiplier_comment": need_comment
-#     }
-#
-#     await message.answer(f'Множитель "{user_data["multiplier_name"]}" добавлен в шаблон.',
-#                          reply_markup=keyboards.create_template_keyboard())
-#     await state.finish()
-#
-# async def test_template(message: types.Message):
-#     user_id = message.from_user.id
-#     if not user_criterion_dict:
-#         await message.answer("Тестирование недоступно, так как шаблон пуст. Добавьте хотя бы один критерий.")
-#         return
-#
-#     scores_sum = 0
-#     output_criterions = []
-#
-#     for criterion in user_criterion_dict[user_id].values():
-#         criterion_name = criterion["criterion_name"]
-#         criterion_score = criterion["criterion_score"]
-#         random_hours = random.randint(1, 10)
-#         score = criterion_score * random_hours
-#         scores_sum += score
-#
-#         if criterion["criterion_comment"]:
-#             output_criterions.append(f"• {criterion_name}:\n{random_hours} hours = {score} scores\nКомментарий: Сегодня я потратил на это {random_hours} часов.")
-#         else:
-#             output_criterions.append(f"• {criterion_name}:\n{random_hours} hours = {score} scores")
-#
-#     result_criterions = "\n".join(output_criterions)
-#     await message.answer(f"Отчет:\n\nКритерии:\n{result_criterions}\n\nСумма баллов за критерии: {scores_sum}")
-#
-# async def save_template(message: types.Message, state: FSMContext):
-#     user_id = message.from_user.id
-#     if not user_criterion_dict:
-#         await message.answer("Ваш шаблон пуст. Добавьте хотя бы один критерий или условие.")
-#     else:
-#         await message.answer("Введите название для вашего шаблона:")
-#         await TemplateCreation.waiting_for_template_name.set()
-#
-# async def process_template_name(message: types.Message, state: FSMContext):
-#     template_name = message.text
-#     user_id = message.from_user.id
-#
-#     save_template_to_db(user_id, template_name)
-#
-#     user_criterion_dict[user_id] = {}
-#     user_mnojitel_dict[user_id] = {}
-#
-#     await message.answer(f"Шаблон '{template_name}' успешно сохранен.", reply_markup=keyboards.main_keyboard())
-#     await state.finish()
-#
-# def save_template_to_db(telegram_id, template_name):
-#     connection, cursor = get_connection_and_cursor_vars()
-#
-#     cursor.execute('SELECT id FROM "user" WHERE telegram_id = %s', (telegram_id,))
-#     user_id = cursor.fetchone()[0]
-#     cursor.execute('''INSERT INTO user_template (user_id, template_name, key_for_generating)
-#                       VALUES (%s, %s, %s) RETURNING id''',
-#                    (user_id, template_name, str(random.randint(1, 1000000000000000))))
-#     user_template_id = cursor.fetchone()[0]
-#
-#     for criterion in user_criterion_dict[telegram_id].values():
-#         cursor.execute('''INSERT INTO template_criterion (user_template_id, criterion_name, criterion_score, criterion_comment)
-#                           VALUES (%s, %s, %s, %s)''',
-#                        (user_template_id, criterion["criterion_name"], criterion["criterion_score"], int(criterion["criterion_comment"])))
-#
-#     for multiplier in user_mnojitel_dict[telegram_id].values():
-#         cursor.execute('''INSERT INTO template_multiplier (user_template_id, multiplier_name, multiplier_score, multiplier_comment)
-#                           VALUES (%s, %s, %s, %s)''',
-#                        (user_template_id, multiplier["multiplier_name"], multiplier["multiplier_score"], int(multiplier["multiplier_comment"])))
-#
-#     connection.commit()
-#     connection.close()
+    await state.clear()
+    await message.answer("Создание отменено", reply_markup=create_template_keyboard())
+
+
+
+@router_cmd_save_templ.message(F.text == "Сохранить шаблон")
+async def cmd_save_templ(message: Message, state: FSMContext):
+    telegram_id = message.from_user.id
+    print(user_templates.get(telegram_id))
+    current_user_templ = user_templates.get(telegram_id)
+
+    if current_user_templ:
+        # Переходим в состояние ожидания имени шаблона
+        await message.answer("• Введите название шаблона.")
+        await state.set_state(SaveTemplate.waiting_for_template_name)
+    else:
+        await message.answer("Шаблон пуст.")
+
+@router_cmd_save_templ.message(SaveTemplate.waiting_for_template_name)
+async def get_template_name(message: Message, state: FSMContext):
+    template_name = message.text  # Получаем имя шаблона от пользователя
+    telegram_id = message.from_user.id
+    key_for_generating = str(random.randint(1000000000, 9999999999))
+    current_user_templ = user_templates.get(telegram_id)
+
+    await save_user_template(
+        telegram_id=telegram_id,
+        username=message.from_user.first_name,
+        template_name=template_name,
+        key_for_generating=key_for_generating,
+        crits=current_user_templ['crit'],
+        mnojs=current_user_templ['mnoj']
+    )
+
+    await message.answer("Ваш шаблон успешно сохранен!", reply_markup=main_keyboard())
+    await state.clear()
+    if telegram_id in user_templates:
+        user_templates.pop(telegram_id)

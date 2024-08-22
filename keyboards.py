@@ -31,3 +31,10 @@ def user_templates_keyboard(templates_list):
         inline_keyboard=templates_list
     )
     return keyboard
+
+def cancel_keyboard():
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="Отмена")]],
+        resize_keyboard=True  # Уменьшение размера кнопок
+    )
+    return keyboard
