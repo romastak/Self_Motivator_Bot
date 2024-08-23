@@ -4,11 +4,11 @@ import random
 from aiogram.types import Message
 from aiogram.filters import Command
 from aiogram import F, Router
-from keyboards import main_keyboard, create_template_keyboard, cancel_keyboard, delete_crit_keyboard
 from aiogram.fsm.state import StatesGroup, State # Классы состояний
 from aiogram.fsm.context import FSMContext # Инструмент управления состояниями
 from aiogram.types import CallbackQuery
 from aiogram.filters.callback_data import CallbackData
+from keyboards import main_keyboard, create_template_keyboard, cancel_keyboard, delete_crit_keyboard, delete_mnoj_keyboard
 import re
 
 from requests import save_user_template
@@ -19,6 +19,8 @@ router_cmd_save_templ = Router()
 router_cancel = Router()
 router_cmd_delete_crit = Router()
 router_delete_crit_el = Router()
+router_cmd_delete_mnoj = Router()
+router_delete_mnoj_el = Router()
 
 user_templates = {}
 
@@ -357,7 +359,7 @@ async def cmd_delete_crit(message: Message):
             await message.answer(text='Выберите критерий для удаления:', reply_markup=delete_crit_keyboard(crits_list))
 
         else:
-            pass
+            await message.answer('Вы не добавили ни одного критерия')
 
     else:
         await message.answer('Вы не добавили ни одного критерия')
@@ -379,6 +381,44 @@ async def delete_crit_el(callback: CallbackQuery):
         else:
             del current_user_crits[crit_num]
             await callback.message.answer(f"Критерий удален")
+
+    await callback.answer()
+
+
+@router_cmd_delete_mnoj.message(F.text == "- Удалить множитель")
+async def cmd_delete_mnoj(message: Message):
+    telegram_id = message.from_user.id
+
+    if telegram_id in user_templates:
+        current_user_templ = user_templates.get(telegram_id)
+        current_user_mnoj = current_user_templ.get('mnoj')
+
+        if current_user_mnoj != []:
+            print('множ есть')
+            print(current_user_mnoj)
+            mnoj_list = []
+            for mnoj_name in current_user_mnoj:
+                clear_mnoj_name = mnoj_name.get('name')
+                mnoj_list.append(clear_mnoj_name)
+            await message.answer(text='Выберите критерий для удаления:', reply_markup=delete_mnoj_keyboard(mnoj_list))
+
+        else:
+            await message.answer('Вы не добавили ни одного множителя')
+
+    else:
+        await message.answer('Вы не добавили ни одного множителя')
+
+@router_delete_mnoj_el.callback_query(lambda callback: re.match(r"^mnoj_num_\d+$", callback.data))
+async def delete_mnoj_el(callback: CallbackQuery):
+    telegram_id = callback.from_user.id
+    match = re.match(r"^mnoj_num_(\d+)$", callback.data)
+
+    if match:
+        mnoj_num = int(match.group(1))  # Извлекаем номер критерия
+        current_user_templ = user_templates.get(telegram_id)
+        current_user_mnoj = current_user_templ.get('mnoj')
+        del current_user_mnoj[mnoj_num]
+        await callback.message.answer(f"Множитель удален")
 
     await callback.answer()
 

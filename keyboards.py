@@ -6,7 +6,7 @@ def main_keyboard():
         keyboard=[
             [KeyboardButton(text="О системе мотивации"), KeyboardButton(text="Использование системы на примере")],
             [KeyboardButton(text="Создать отчёт")],
-            [KeyboardButton(text="Создать шаблон"), KeyboardButton(text="Просмотреть шаблоны")],
+            [KeyboardButton(text="Создать шаблон"), KeyboardButton(text="Мои шаблоны")],
             [KeyboardButton(text="Получить ключ шаблона"), KeyboardButton(text="Создать шаблон по ключу")],
             [KeyboardButton(text="Мотивирующая цитата")]
         ],
@@ -35,6 +35,22 @@ def delete_crit_keyboard(crits_list):
         keyboard.add(InlineKeyboardButton(text=el, callback_data=str("crit_num_" + str(n))))
         n += 1
     return keyboard.adjust(1).as_markup() # Сколько будет кнопок в ряду
+
+def delete_mnoj_keyboard(mnoj_list):
+    keyboard = InlineKeyboardBuilder()
+    n = 0
+    for el in mnoj_list:
+        keyboard.add(InlineKeyboardButton(text=el, callback_data=str("mnoj_num_" + str(n))))
+        n += 1
+    return keyboard.adjust(1).as_markup()
+
+def get_user_templ(templ_list):
+    keyboard = InlineKeyboardBuilder()
+    n = 0
+    for el in templ_list:
+        keyboard.add(InlineKeyboardButton(text=el, callback_data=str("templ_num_" + str(n))))
+        n += 1
+    return keyboard.adjust(1).as_markup()
 
 def cancel_keyboard():
     keyboard = ReplyKeyboardMarkup(

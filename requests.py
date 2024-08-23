@@ -64,3 +64,14 @@ async def get_all_telegram_ids() -> list[int]:
     return telegram_ids
 
 
+async def get_user_templates(telegram_id) -> list[int]:
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+            user_id = await session.execute(
+                select(User.tg_id).filter_by(tg_id=telegram_id)
+            )
+            result = await session.execute(
+                select(UserTemplates.template_name).filter_by(user_id=user_id)
+            )
+            user_templ = [row[0] for row in result.fetchall()]
+    return user_templ # TODO need to ended. result in chat gpt in this branch
