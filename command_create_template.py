@@ -7,6 +7,10 @@ from aiogram import F, Router
 from keyboards import main_keyboard, create_template_keyboard, cancel_keyboard, delete_crit_keyboard
 from aiogram.fsm.state import StatesGroup, State # Классы состояний
 from aiogram.fsm.context import FSMContext # Инструмент управления состояниями
+from aiogram.types import CallbackQuery
+from aiogram.filters.callback_data import CallbackData
+import re
+
 from requests import save_user_template
 
 
@@ -14,6 +18,7 @@ router_cmd_cr_templ = Router()
 router_cmd_save_templ = Router()
 router_cancel = Router()
 router_cmd_delete_crit = Router()
+router_delete_crit_el = Router()
 
 user_templates = {}
 
@@ -173,205 +178,209 @@ async def add_mnoj_end(message: Message, state: FSMContext):
     print(user_templates)  # Для проверки в консоли
 
 
-
 @router_cmd_cr_templ.message(F.text == "Протестировать шаблон")
 async def cmd_test_templ(message: Message):
 
     username = message.from_user.first_name
     telegram_id = message.from_user.id
+    need_to_output_mnoj_string = False
 
     if not telegram_id in user_templates:
         await message.answer(f"• Тестирование недоступно так как шаблон пуст.\n"
                              f"• Добавьте хотя бы один критерий или условие.")
     else:
-        def random_hours_func(what_elem):
-            if what_elem == "crit":
-                random_hours = random.randint(1, 10)
-            if what_elem == "global_score":
-                random_hours = random.randint(20, 200)
-            return float(random_hours)
+        current_user_templ = user_templates.get(telegram_id)
+        current_user_crits = current_user_templ.get('crit')
+        current_user_mnoj = current_user_templ.get('mnoj')
+        if current_user_crits == []:
+            await message.answer(f"• Тестирование недоступно так как шаблон пуст.\n"
+                                 f"• Добавьте хотя бы один критерий или условие.")
+        else:
+            def random_hours_func(what_elem):
+                if what_elem == "crit":
+                    random_hours = random.randint(1, 10)
+                if what_elem == "global_score":
+                    random_hours = random.randint(20, 200)
+                return float(random_hours)
 
-        def random_mnojitel_get_or_not():
-            rand_int = random.randint(1, 2)
-            if rand_int == 1:
-                return "Нет", "Получен", "не занимался"
+            def random_mnojitel_get_or_not():
+                rand_int = random.randint(1, 2)
+                if rand_int == 1:
+                    return "Нет", "Получен", "не занимался"
+                else:
+                    return "Да", "Не получен", "занимался"
+
+            current_user_template = user_templates.get(telegram_id, {})
+            crit_list = current_user_template.get('crit', [])
+            mnoj_list = current_user_template.get('mnoj', [])
+
+            count_crits = len(crit_list)
+            count_mnoj = len(mnoj_list)
+
+            print("Crit:", crit_list, count_crits)
+            print("Mnoj:", mnoj_list, count_mnoj)
+
+            output_crits = []
+            output_mnoj = []
+            scores_sum_for_today = 0
+
+            # Сбор критериев в шаблон
+            if count_crits != 0:
+                for crit_num in range(count_crits):
+                    random_hours = random_hours_func("crit")
+                    crit = crit_list[crit_num]
+
+                    crit_name = str(crit.get('name'))
+                    crit_score = float(crit.get('score'))
+                    crit_comment = int(crit.get('comment'))
+
+                    if crit_comment == 1:
+                        output_crits.append(
+                            f"• {crit_name}:\n"
+                            f"{random_hours} hours = {crit_score * random_hours} scores\n"
+                            f"Комментарий: Сегодня я потратил на это {random_hours} hours."
+                            f"\n"
+                        )
+                    else:
+                        output_crits.append(
+                            f"• {crit_name}:\n"
+                            f"{random_hours} hours = {crit_score * random_hours} scores"
+                            f"\n"
+                        )
+
+                    scores_sum_for_today += (crit_score * random_hours)
+
+                # Соединяем все строки с критериями в одну с помощью join
+                result_crits = "\n".join(output_crits)
+
+            # Сбор множителей в шаблон
+            applied_mnoj = 1
+            if count_mnoj != 0:
+                mnoj_score_sum = float(0)
+
+                for mnoj_num in range(count_mnoj):
+                    mnoj = mnoj_list[mnoj_num]
+                    yes_or_no, get_or_not, do_or_not = random_mnojitel_get_or_not()
+
+                    mnoj_name = str(mnoj.get('name'))
+                    mnoj_score = float(mnoj.get('score'))
+                    mnoj_comment = int(mnoj.get('comment'))
+
+                    if mnoj_comment == 1:
+                        output_mnoj.append(
+                            f"• {mnoj_name}: {yes_or_no}\n"
+                            f"Множитель x{mnoj_score}: {get_or_not}\n"
+                            f"Комментарий: Сегодня я {do_or_not} этим."
+                            f"\n"
+                        )
+                    else:
+                        output_mnoj.append(
+                            f"• {mnoj_name}: {yes_or_no}\n"
+                            f"Множитель x{mnoj_score}: {get_or_not}"
+                            f"\n"
+                        )
+
+                    # Применяем множитель только если ответ "Нет"
+                    if yes_or_no == "Нет":
+                        applied_mnoj *= mnoj_score  # Умножаем текущий множитель на итоговый
+                        need_to_output_mnoj_string = True
+
+            # Если есть хотя бы один множитель
+            if count_mnoj != 0:
+                result_mnojs = "\n".join(output_mnoj)
             else:
-                return "Да", "Не получен", "занимался"
+                result_mnojs = None
 
-        current_user_template = user_templates.get(telegram_id, {})
-        crit_list = current_user_template.get('crit', [])
-        mnoj_list = current_user_template.get('mnoj', [])
-
-        count_crits = len(crit_list)
-        count_mnoj = len(mnoj_list)
-
-        print("Crit:", crit_list, count_crits)
-        print("Mnoj:", mnoj_list, count_mnoj)
-
-        output_crits = []
-        output_mnoj = []
-        scores_sum_for_today = 0
-
-        # Сбор критериев в шаблон
-        if count_crits != 0:
-            for crit_num in range(count_crits):
-                random_hours = random_hours_func("crit")
-                crit = crit_list[crit_num]
-
-                crit_name = str(crit.get('name'))
-                crit_score = float(crit.get('score'))
-                crit_comment = int(crit.get('comment'))
-
-                if crit_comment == 1:
-                    output_crits.append(
-                        f"• {crit_name}:\n"
-                        f"{random_hours} hours = {crit_score * random_hours} scores\n"
-                        f"Комментарий: Сегодня я потратил на это {random_hours} hours."
-                        f"\n"
-                    )
+            def mnoj_string_in_report(need_to_output_mnoj_string, final_score):
+                if need_to_output_mnoj_string:
+                    return f"• Применение множителя. Итоговая сумма баллов: {final_score}\n"
                 else:
-                    output_crits.append(
-                        f"• {crit_name}:\n"
-                        f"{random_hours} hours = {crit_score * random_hours} scores"
-                        f"\n"
-                    )
-
-                scores_sum_for_today += (crit_score * random_hours)
-
-            # Соединяем все строки с критериями в одну с помощью join
-            result_crits = "\n".join(output_crits)
-
-        # Сбор множителей в шаблон
-        if count_mnoj != 0:
-            mnoj_score_sum = float(0)
-
-            for mnoj_num in range(count_mnoj):
-                mnoj = mnoj_list[mnoj_num]
-                yes_or_no, get_or_not, do_or_not = random_mnojitel_get_or_not()
-
-                mnoj_name = str(mnoj.get('name'))
-                mnoj_score = float(mnoj.get('score'))
-                mnoj_comment = int(mnoj.get('comment'))
-
-                if mnoj_comment == 1:
-                    output_mnoj.append(
-                        f"• {mnoj_name}: {yes_or_no}\n"
-                        f"Множитель x{mnoj_score}: {get_or_not}\n"
-                        f"Комментарий: Сегодня я {do_or_not} этим."
-                        f"\n"
-                    )
-                else:
-                    output_mnoj.append(
-                        f"• {mnoj_name}: {yes_or_no}\n"
-                        f"Множитель x{mnoj_score}: {get_or_not}"
-                        f"\n"
-                    )
-
-                mnoj_score_sum += mnoj_score
-
-        # Если "Нет", то выводим итоговую строку с примененным множителем за сегодня
-        def get_mnoj_or_not_func(yes_or_no):
-                if yes_or_no == "Да":
                     return ""
-                else:
-                    return "• Применение множителя. Итоговая сумма баллов: " + str(scores_sum_for_today * mnoj_score_sum) + "\n"
 
-        # Если есть хотя бы один множитель
-        if int(count_mnoj):
-            result_mnojs = "\n".join(output_mnoj)
-        else:
-            result_mnojs = None
+            # Выводим результат с учетом примененных множителей
+            if result_mnojs != None:
+                random_hours = float(random_hours_func('global_score'))
+                final_score = scores_sum_for_today * applied_mnoj
 
-        if result_mnojs != None:
-            get_mnoj_or_not = get_mnoj_or_not_func(yes_or_no)
-            random_hours = float(random_hours_func('global_score'))
+                await message.answer(
+                    f"Отчет: {username}\n"
+                    f"................................................\n"
+                    f"Критерии:\n"
+                    f"\n"
+                    f"{result_crits}\n"
+                    f"................................................\n"
+                    f"Множители:\n"
+                    f"\n"
+                    f"{result_mnojs}\n"
+                    f"................................................\n"
+                    f"Итог:\n"
+                    f"\n"
+                    f"• Сумма баллов за критерии за межотчетный период: {scores_sum_for_today}\n"
+                    f"{mnoj_string_in_report(need_to_output_mnoj_string, final_score)}"
+                    f"• Глобальная сумма баллов: {random_hours + scores_sum_for_today * mnoj_score}"
+                )
 
-            await message.answer(
-                f"Отчет: {username}\n"
-                f"................................................\n"
-                f"Критерии:\n"
-                f"\n"
-                f"{result_crits}\n"
-                f"................................................\n"
-                f"Множители:\n"
-                f"\n"
-                f"{result_mnojs}\n"
-                f"................................................\n"
-                f"Итог:\n"
-                f"\n"
-                f"• Сумма баллов за критерии за межотчетный период: {scores_sum_for_today}\n"
-                f"{get_mnoj_or_not}"
-                f"• Глобальная сумма баллов: {random_hours + scores_sum_for_today * mnoj_score}"
-            )
+            else:
+                random_hours = float(random_hours_func('global_score'))
 
-        else:
-            random_hours = float(random_hours_func('global_score'))
+                await message.answer(
+                    f"Отчет: {username}\n"
+                    f"................................................\n"
+                    f"Критерии:\n"
+                    f"\n"
+                    f"{result_crits}\n"
+                    f"................................................\n"
+                    f"Итог:\n"
+                    f"\n"
+                    f"• Итоговая сумма баллов за межотчетный период: {scores_sum_for_today}\n"
+                    f"• Глобальная сумма баллов: {random_hours + scores_sum_for_today}"
+                )
 
-            await message.answer(
-                f"Отчет: {username}\n"
-                f"................................................\n"
-                f"Критерии:\n"
-                f"\n"
-                f"{result_crits}\n"
-                f"................................................\n"
-                f"Итог:\n"
-                f"\n"
-                f"• Итоговая сумма баллов за межотчетный период: {scores_sum_for_today}\n"
-                f"• Глобальная сумма баллов: {random_hours + scores_sum_for_today}"
-            )
-
-        scores_sum_for_today = 0
-
+            scores_sum_for_today = 0
 
 
 @router_cmd_delete_crit.message(F.text == "- Удалить критерий")
-async def cmd_delete_crit(message: Message, state: FSMContext):
+async def cmd_delete_crit(message: Message):
     telegram_id = message.from_user.id
 
     if telegram_id in user_templates:
         current_user_templ = user_templates.get(telegram_id)
         current_user_crits = current_user_templ.get('crit')
 
-        if current_user_crits:
+        if current_user_crits != []:
             print('крит есть')
             print(current_user_crits)
             crits_list = []
             for crit_name in current_user_crits:
                 clear_crit_name = crit_name.get('name')
                 crits_list.append(clear_crit_name)
-            await state.set_state(CritDelete.which_crit_to_delete)
             await message.answer(text='Выберите критерий для удаления:', reply_markup=delete_crit_keyboard(crits_list))
 
         else:
             pass
 
     else:
-        await message.answer('Вы не добавили ни одного критерия') # TODO func to del crits
-        state.clear()
+        await message.answer('Вы не добавили ни одного критерия')
 
-@router_cmd_delete_crit.message(CritDelete.which_crit_to_delete)
-async def cmd_delete_crit_done(message: Message, state: FSMContext):
-    await state.update_data(which_crit_to_delete=message)
-    crit_num_to_del = which_crit_to_delete[0][-1]
+@router_delete_crit_el.callback_query(lambda callback: re.match(r"^crit_num_\d+$", callback.data))
+async def delete_crit_el(callback: CallbackQuery):
+    telegram_id = callback.from_user.id
+    match = re.match(r"^crit_num_(\d+)$", callback.data)
 
-    telegram_id = message.from_user.id
+    if match:
+        crit_num = int(match.group(1))  # Извлекаем номер критерия
+        current_user_templ = user_templates.get(telegram_id)
+        current_user_crits = current_user_templ.get('crit')
+        current_user_mnoj = current_user_templ.get('mnoj')
 
-    current_user_templ = user_templates.get(telegram_id)
-    current_user_crits = current_user_templ.get('crit')
-    current_user_crits.popitem(crit_num_to_del)
+        if len(current_user_crits) == 1 and current_user_mnoj != []:
+            await callback.message.answer(f"Последний критерий удалить нельзя, так как в шаблоне присутствуют множители.\n"
+                                          f"Для удаления последнего критерия удалите множители.")
+        else:
+            del current_user_crits[crit_num]
+            await callback.message.answer(f"Критерий удален")
 
-    await state.clear()
-    await message.answer(f"Критерий удален.")
-
-
-
-
-
-
-
-
-
-
+    await callback.answer()
 
 
 @router_cmd_cr_templ.message(F.text == "Выйти без сохранения")

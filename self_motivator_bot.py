@@ -9,7 +9,7 @@ from keyboards import main_keyboard
 from command_start import router_cmd_start
 from command_about import router_cmd_about
 from command_example import router_cmd_ex
-from command_create_template import router_cmd_cr_templ, router_cancel, router_cmd_save_templ, router_cancel, router_cmd_delete_crit
+from command_create_template import router_cmd_cr_templ, router_cancel, router_cmd_save_templ, router_cancel, router_cmd_delete_crit, router_delete_crit_el
 from command_get_quote import router_get_quote
 from requests import get_all_telegram_ids
 
@@ -28,6 +28,7 @@ async def main():
     dp.include_router(router_cancel)
     dp.include_router(router_cmd_delete_crit)
     dp.include_router(router_get_quote)
+    dp.include_router(router_delete_crit_el)
     tg_ids = await get_all_telegram_ids()
 
     for id in tg_ids: # Отправляем всем main_keyboard при запуске бота

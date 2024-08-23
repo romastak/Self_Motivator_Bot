@@ -32,7 +32,7 @@ def delete_crit_keyboard(crits_list):
     keyboard = InlineKeyboardBuilder()
     n = 0
     for el in crits_list:
-        keyboard.add(InlineKeyboardButton(text=el, callback_data=str("/crit_num_" + str(n))))
+        keyboard.add(InlineKeyboardButton(text=el, callback_data=str("crit_num_" + str(n))))
         n += 1
     return keyboard.adjust(1).as_markup() # Сколько будет кнопок в ряду
 
