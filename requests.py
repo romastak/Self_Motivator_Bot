@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import insert
+from sqlalchemy import insert, delete
 from models import User, UserTemplates, TemplateCrit, TemplateMnoj, async_session, AsyncSessionLocal
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import Integer
@@ -64,14 +64,101 @@ async def get_all_telegram_ids() -> list[int]:
     return telegram_ids
 
 
-async def get_user_templates(telegram_id) -> list[int]:
+async def get_user_templates(telegram_id: int) -> list[str]:
     async with AsyncSessionLocal() as session:
         async with session.begin():
-            user_id = await session.execute(
-                select(User.tg_id).filter_by(tg_id=telegram_id)
-            )
+            # Получаем user_id по telegram_id
             result = await session.execute(
-                select(UserTemplates.template_name).filter_by(user_id=user_id)
+                select(User.id).filter_by(tg_id=telegram_id)
             )
-            user_templ = [row[0] for row in result.fetchall()]
-    return user_templ # TODO need to ended. result in chat gpt in this branch
+            user_id = result.scalar()  # Извлекаем единственное значение (user_id)
+
+            if user_id:
+                # Получаем все шаблоны пользователя
+                result = await session.execute(
+                    select(UserTemplates.template_name).filter_by(user_id=user_id)
+                )
+                # Преобразуем результат в список
+                user_templ = [row[0] for row in result.fetchall()]
+            else:
+                user_templ = []  # Если пользователь не найден, возвращаем пустой список
+
+    return user_templ
+
+async def delete_user_template(telegram_id: int, template_name: str) -> bool:
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+            # Получаем user_id по telegram_id
+            result = await session.execute(
+                select(User.id).filter_by(tg_id=telegram_id)
+            )
+            user_id = result.scalar()  # Извлекаем единственное значение (user_id)
+
+            if not user_id:
+                return False  # Если пользователь не найден, возвращаем False
+
+            # Получаем шаблон по имени и user_id
+            template_stmt = select(UserTemplates).filter_by(user_id=user_id, template_name=template_name)
+            result = await session.execute(template_stmt)
+            template = result.scalars().first()
+
+            if not template:
+                return False  # Если шаблон не найден, возвращаем False
+
+            # Удаляем все связанные критерии
+            await session.execute(
+                TemplateCrit.__table__.delete().where(TemplateCrit.user_template_id == template.id)
+            )
+
+            # Удаляем все связанные множители
+            await session.execute(
+                TemplateMnoj.__table__.delete().where(TemplateMnoj.user_template_id == template.id)
+            )
+
+            # Удаляем сам шаблон
+            await session.delete(template)
+
+        await session.commit()  # Сохранение всех изменений
+
+    return True  # Возвращаем True, если удаление прошло успешно
+
+
+async def delete_user_template(telegram_id: int, template_name: str) -> bool:
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+            # Получаем user_id по telegram_id
+            result = await session.execute(
+                select(User.id).filter_by(tg_id=telegram_id)
+            )
+            user_id = result.scalar()  # Извлекаем единственное значение (user_id)
+
+            if not user_id:
+                return False  # Если пользователь не найден, возвращаем False
+
+            # Получаем id шаблона по имени и user_id
+            result = await session.execute(
+                select(UserTemplates.id).filter_by(user_id=user_id, template_name=template_name)
+            )
+            template_id = result.scalar()  # Извлекаем единственное значение (template_id)
+
+            if not template_id:
+                return False  # Если шаблон не найден, возвращаем False
+
+            # Удаляем все связанные критерии
+            await session.execute(
+                delete(TemplateCrit).where(TemplateCrit.user_template_id == template_id)
+            )
+
+            # Удаляем все связанные множители
+            await session.execute(
+                delete(TemplateMnoj).where(TemplateMnoj.user_template_id == template_id)
+            )
+
+            # Удаляем сам шаблон
+            await session.execute(
+                delete(UserTemplates).where(UserTemplates.id == template_id)
+            )
+
+            await session.commit()  # Применяем изменения
+
+    return True  # Возвращаем True, если удаление прошло успешно

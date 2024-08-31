@@ -1,5 +1,5 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
+from aiogram.utils.keyboard import InlineKeyboardMarkup, ReplyKeyboardBuilder, InlineKeyboardBuilder
 
 def main_keyboard():
     keyboard = ReplyKeyboardMarkup(
@@ -44,7 +44,7 @@ def delete_mnoj_keyboard(mnoj_list):
         n += 1
     return keyboard.adjust(1).as_markup()
 
-def get_user_templ(templ_list):
+def get_user_templ_keyboard(templ_list):
     keyboard = InlineKeyboardBuilder()
     n = 0
     for el in templ_list:
@@ -54,7 +54,19 @@ def get_user_templ(templ_list):
 
 def cancel_keyboard():
     keyboard = ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="Отмена")]],
+        keyboard=[
+            [KeyboardButton(text="Отмена")]
+        ],
         resize_keyboard=True  # Уменьшение размера кнопок
+    )
+    return keyboard
+
+# Инлайн-клавиатура для действий над выбранным шаблоном
+def templ_actions_keyboard():
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Отредактировать шаблон", callback_data="edit_templ")],
+            [InlineKeyboardButton(text="Удалить шаблон", callback_data="delete_templ")]
+        ]
     )
     return keyboard

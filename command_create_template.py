@@ -180,6 +180,11 @@ async def add_mnoj_end(message: Message, state: FSMContext):
     print(user_templates)  # Для проверки в консоли
 
 
+@router_cmd_cr_templ.message(F.text == "+ Добавить условие")
+async def add_usl_one(message: Message):
+    await message.answer("Функция находится в разработке")
+
+
 @router_cmd_cr_templ.message(F.text == "Протестировать шаблон")
 async def cmd_test_templ(message: Message):
 
@@ -421,6 +426,11 @@ async def delete_mnoj_el(callback: CallbackQuery):
         await callback.message.answer(f"Множитель удален")
 
     await callback.answer()
+
+
+@router_cmd_cr_templ.message(F.text == "- Удалить условие")
+async def add_usl_one(message: Message):
+    await message.answer("Функция находится в разработке")
 
 
 @router_cmd_cr_templ.message(F.text == "Выйти без сохранения")

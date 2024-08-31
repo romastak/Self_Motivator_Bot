@@ -8,13 +8,20 @@ from aiogram.fsm.state import StatesGroup, State # Классы состояни
 from aiogram.fsm.context import FSMContext # Инструмент управления состояниями
 from aiogram.types import CallbackQuery
 from aiogram.filters.callback_data import CallbackData
-from keyboards import main_keyboard, create_template_keyboard, cancel_keyboard, delete_crit_keyboard, delete_mnoj_keyboard, get_user_templ
-from requests import get_user_templates
+from keyboards import main_keyboard, create_template_keyboard, cancel_keyboard, delete_crit_keyboard, delete_mnoj_keyboard, get_user_templ_keyboard
+from keyboards import templ_actions_keyboard
+from requests import get_user_templates, delete_user_template
 import re
 
 from requests import save_user_template
 
 router_cmd_get_user_templ = Router()
+
+
+class Choose_templ(StatesGroup):
+    choosen_templ = State()
+    templ_name = State()
+
 
 @router_cmd_get_user_templ.message(F.text == "Мои шаблоны")
 async def get_user_templ(message: Message):
@@ -22,26 +29,50 @@ async def get_user_templ(message: Message):
     user_templ_list = await get_user_templates(telegram_id)
 
     if user_templ_list != []:
-        await message.answer(text='Ваши шаблоны:', reply_markup=delete_crit_keyboard(crits_list))
+        await message.answer(text='Ваши шаблоны:', reply_markup=get_user_templ_keyboard(user_templ_list))
     else:
         await message.answer('У вас нет ни одного шаблона.')
 
-# @router_delete_crit_el.callback_query(lambda callback: re.match(r"^crit_num_\d+$", callback.data))
-# async def delete_crit_el(callback: CallbackQuery):
-#     telegram_id = callback.from_user.id
-#     match = re.match(r"^crit_num_(\d+)$", callback.data)
-#
-#     if match:
-#         crit_num = int(match.group(1))  # Извлекаем номер критерия
-#         current_user_templ = user_templates.get(telegram_id)
-#         current_user_crits = current_user_templ.get('crit')
-#         current_user_mnoj = current_user_templ.get('mnoj')
-#
-#         if len(current_user_crits) == 1 and current_user_mnoj != []:
-#             await callback.message.answer(f"Последний критерий удалить нельзя, так как в шаблоне присутствуют множители.\n"
-#                                           f"Для удаления последнего критерия удалите множители.")
-#         else:
-#             del current_user_crits[crit_num]
-#             await callback.message.answer(f"Критерий удален")
-#
-#     await callback.answer()
+
+# Обработчик нажатий на кнопки с шаблонами
+@router_cmd_get_user_templ.callback_query(lambda callback: callback.data.startswith("templ_num_"))
+async def choose_templ(callback: CallbackQuery, state: FSMContext):
+    telegram_id = callback.from_user.id
+    match = re.match(r"^templ_num_(\d+)$", callback.data)
+
+    if match:
+        template_num = int(match.group(1))
+        user_templ_list = await get_user_templates(telegram_id)
+        chosen_templ = user_templ_list[template_num]
+        await state.update_data(chosen_templ=chosen_templ) # Сохраняем переменную в контексте FSM
+
+        await callback.message.edit_text(
+            text=f'Вы выбрали шаблон: "{chosen_templ}"',
+            parse_mode='Markdown',
+            reply_markup=templ_actions_keyboard()
+        )
+
+
+# Обработчик нажатия кнопки "Отредактировать шаблон"
+@router_cmd_get_user_templ.callback_query(F.data == "edit_templ")
+async def edit_template(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer("Функция находится в разработке")
+
+
+# Обработчик нажатия кнопки "Удалить шаблон"
+@router_cmd_get_user_templ.callback_query(F.data == "delete_templ")
+async def delete_template(callback: CallbackQuery, state: FSMContext):
+    tg_id = callback.from_user.id
+    data = await state.get_data()
+    chosen_templ = data.get('chosen_templ')
+
+    if chosen_templ:
+        # Удаляем шаблон
+        success = await delete_user_template(tg_id, chosen_templ)
+
+        if success:
+            await callback.message.answer("Шаблон удален.", reply_markup=main_keyboard())
+        else:
+            await callback.message.answer("Не удалось удалить шаблон. Возможно, он уже удален.")
+    else:
+        await callback.message.answer("Не удалось найти выбранный шаблон.")
