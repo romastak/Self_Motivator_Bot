@@ -74,6 +74,8 @@ def templ_actions_keyboard():
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="Отредактировать шаблон", callback_data="edit_templ")],
+            [InlineKeyboardButton(text="Изменить глобальные очки", callback_data="edit_templ")],
+            [InlineKeyboardButton(text="Обнулить глобальные очки", callback_data="edit_templ")],
             [InlineKeyboardButton(text="Удалить шаблон", callback_data="delete_templ")]
         ]
     )

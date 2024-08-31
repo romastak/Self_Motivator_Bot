@@ -151,3 +151,68 @@ async def get_templ_key(telegram_id: int, template_name: str):
 
             return key
 
+# Получить ключи всех шаблонов
+async def get_all_templ_keys() -> list[int]:
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+            result = await session.execute(select(UserTemplates.key_for_generating))
+            templ_keys = [row[0] for row in result.fetchall()]
+    return templ_keys
+
+# Получаем данные шаблона по ключу
+async def get_template_data_by_key(key: str):
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+            templ_id = await session.execute(
+                select(UserTemplates.id).filter_by(key_for_generating=key)
+            )
+            templ_id_val = templ_id.scalar()
+
+            templ_name = await session.execute(
+                select(UserTemplates.template_name).filter_by(id=templ_id_val)
+            )
+            templ_name_val = templ_name.scalar()
+
+            templ_crits = await session.execute(
+                select(UserTemplates.template_name).filter_by(user_template_id=templ_id_val)
+            )
+            templ_crits_val = templ_crits.scalar()
+
+            templ_mnoj = await session.execute(
+                select(UserTemplates.template_name).filter_by(user_template_id=templ_id_val)
+            )
+            templ_mnoj_val = templ_mnoj.scalar()
+
+            return templ_name_val, templ_crits_val, templ_mnoj_val
+
+
+# Добавляем шаблон пользователю
+async def add_template_to_user(telegram_id: int, templ_name_val, templ_crits_val, templ_mnoj_val):
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+            # Получаем user_id по telegram_id
+            result = await session.execute(
+                select(User.id).filter_by(tg_id=telegram_id)
+            )
+            user_id = result.scalar()
+
+            if not user_id:
+                return False  # Если пользователь не найден, возвращаем False
+
+            # Создаем новый шаблон для пользователя
+            new_template = UserTemplates(
+                user_id=user_id,
+                template_name=templ_name_val,
+                key_for_generating=123,
+                global_score=0),
+                TemplateCrit(
+                user_id=user_id,
+                template_name=templ_name_val,
+                key_for_generating=123,
+                global_score=0), # TODO need to ended request for created a new template for user
+
+            )
+
+            session.add(new_template)
+            await session.commit()
+            return True

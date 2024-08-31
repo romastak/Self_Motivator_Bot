@@ -13,6 +13,7 @@ from command_create_template import router_cmd_cr_templ, router_cancel, router_c
 from command_get_quote import router_get_quote
 from command_get_templates import router_cmd_get_user_templ
 from command_get_key import router_cmd_get_key
+from command_created_by_key import router_cmd_cr_by_key
 from requests import get_all_telegram_ids
 
 
@@ -35,6 +36,7 @@ async def main():
     dp.include_router(router_delete_mnoj_el)
     dp.include_router(router_cmd_get_user_templ)
     dp.include_router(router_cmd_get_key)
+    dp.include_router(router_cmd_cr_by_key)
     tg_ids = await get_all_telegram_ids()
 
     for id in tg_ids: # Отправляем всем main_keyboard при запуске бота
