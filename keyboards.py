@@ -52,6 +52,14 @@ def get_user_templ_keyboard(templ_list):
         n += 1
     return keyboard.adjust(1).as_markup()
 
+def get_templ_key_keyboard(templ_list):
+    keyboard = InlineKeyboardBuilder()
+    n = 0
+    for el in templ_list:
+        keyboard.add(InlineKeyboardButton(text=el, callback_data=str("templ_key_" + str(n))))
+        n += 1
+    return keyboard.adjust(1).as_markup()
+
 def cancel_keyboard():
     keyboard = ReplyKeyboardMarkup(
         keyboard=[

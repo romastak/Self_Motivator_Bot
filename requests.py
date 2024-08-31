@@ -123,7 +123,7 @@ async def delete_user_template(telegram_id: int, template_name: str) -> bool:
     return True  # Возвращаем True, если удаление прошло успешно
 
 
-async def delete_user_template(telegram_id: int, template_name: str) -> bool:
+async def get_templ_key(telegram_id: int, template_name: str):
     async with AsyncSessionLocal() as session:
         async with session.begin():
             # Получаем user_id по telegram_id
@@ -144,21 +144,10 @@ async def delete_user_template(telegram_id: int, template_name: str) -> bool:
             if not template_id:
                 return False  # Если шаблон не найден, возвращаем False
 
-            # Удаляем все связанные критерии
-            await session.execute(
-                delete(TemplateCrit).where(TemplateCrit.user_template_id == template_id)
+            current_templ = await session.execute(
+                select(UserTemplates.key_for_generating).filter_by(id=template_id)
             )
+            key = current_templ.scalar()
 
-            # Удаляем все связанные множители
-            await session.execute(
-                delete(TemplateMnoj).where(TemplateMnoj.user_template_id == template_id)
-            )
+            return key
 
-            # Удаляем сам шаблон
-            await session.execute(
-                delete(UserTemplates).where(UserTemplates.id == template_id)
-            )
-
-            await session.commit()  # Применяем изменения
-
-    return True  # Возвращаем True, если удаление прошло успешно
