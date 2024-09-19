@@ -5,6 +5,7 @@ from sqlalchemy import insert, delete
 from models import User, UserTemplates, TemplateCrit, TemplateMnoj, async_session, AsyncSessionLocal
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import Integer
+import random
 
 
 async def save_user_template(telegram_id: int, username: str, template_name: str, key_for_generating: str, crits: list, mnojs: list):
@@ -173,21 +174,21 @@ async def get_template_data_by_key(key: str):
             )
             templ_name_val = templ_name.scalar()
 
-            templ_crits = await session.execute(
-                select(UserTemplates.template_name).filter_by(user_template_id=templ_id_val)
+            templ_crit = await session.execute(
+                select(TemplateCrit.crit_name, TemplateCrit.crit_score, TemplateCrit.crit_comment).filter_by(user_template_id=templ_id_val)
             )
-            templ_crits_val = templ_crits.scalar()
+            templ_crit_val = templ_crit.all()
 
             templ_mnoj = await session.execute(
-                select(UserTemplates.template_name).filter_by(user_template_id=templ_id_val)
+                select(TemplateMnoj.mnoj_name, TemplateMnoj.mnoj_score, TemplateMnoj.mnoj_comment).filter_by(user_template_id=templ_id_val)
             )
-            templ_mnoj_val = templ_mnoj.scalar()
+            templ_mnoj_val = templ_mnoj.all()
 
-            return templ_name_val, templ_crits_val, templ_mnoj_val
+            return templ_name_val, templ_crit_val, templ_mnoj_val
 
 
-# Добавляем шаблон пользователю
-async def add_template_to_user(telegram_id: int, templ_name_val, templ_crits_val, templ_mnoj_val):
+# Добавляем шаблон пользователю, который получен по ключу
+async def add_template_to_user(telegram_id, templ_name_val, templ_crits_val, templ_mnoj_val):
     async with AsyncSessionLocal() as session:
         async with session.begin():
             # Получаем user_id по telegram_id
@@ -195,24 +196,52 @@ async def add_template_to_user(telegram_id: int, templ_name_val, templ_crits_val
                 select(User.id).filter_by(tg_id=telegram_id)
             )
             user_id = result.scalar()
+            key_for_generating = str(random.randint(1000000000, 9999999999))
 
-            if not user_id:
-                return False  # Если пользователь не найден, возвращаем False
+            # Создаем новый шаблон по ключу для пользователя
+            if user_id:
+                new_template = UserTemplates(
+                    user_id=user_id,
+                    template_name=templ_name_val,
+                    key_for_generating=key_for_generating,
+                    global_score=0
+                )
 
-            # Создаем новый шаблон для пользователя
-            new_template = UserTemplates(
-                user_id=user_id,
-                template_name=templ_name_val,
-                key_for_generating=123,
-                global_score=0),
-                TemplateCrit(
-                user_id=user_id,
-                template_name=templ_name_val,
-                key_for_generating=123,
-                global_score=0), # TODO need to ended request for created a new template for user
+                # Добавляем новый шаблон в сессию и сохраняем его, чтобы получить его id
+                session.add(new_template)
+                await session.flush()  # Сохраняет данные и обновляет new_template.id
 
-            )
+            if templ_crits_val:
+                new_template_crits = []
+                for crit in templ_crits_val:
+                    new_template_crits.append(TemplateCrit(
+                        user_template_id=new_template.id,
+                        crit_name=crit[0],
+                        crit_score=crit[1],
+                        crit_comment=crit[2],
+                    ))
+                session.add_all(new_template_crits)  # Добавляем все критерии за раз
 
-            session.add(new_template)
+            if templ_mnoj_val:
+                new_template_mnoj = []
+                for mnoj in templ_mnoj_val:
+                    new_template_mnoj.append(TemplateMnoj(
+                        user_template_id=new_template.id,
+                        mnoj_name=mnoj[0],
+                        mnoj_score=mnoj[1],
+                        mnoj_comment=mnoj[2],
+                    ))
+                session.add_all(new_template_mnoj)  # Добавляем все множители за раз
+
             await session.commit()
             return True
+
+
+# Получаем глобальные очки шаблона
+async def get_templates_global_score(key: str):
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+            templ_id = await session.execute(
+                select(UserTemplates.id).filter_by(key_for_generating=key)
+            )
+            templ_id_val = templ_id.scalar()

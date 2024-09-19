@@ -34,6 +34,17 @@ async def get_user_templ(message: Message):
         await message.answer('У вас нет ни одного шаблона.')
 
 
+@router_cmd_get_user_templ.callback_query(F.data == 'back_to_my_templs')
+async def back_to_my_templs(callback: CallbackQuery):
+    telegram_id = callback.from_user.id
+    user_templ_list = await get_user_templates(telegram_id)
+
+    if user_templ_list != []:
+        await callback.message.edit_text(text='Ваши шаблоны:', reply_markup=get_user_templ_keyboard(user_templ_list))
+    else:
+        await callback.message.edit_text(text='Возникла ошибка при загрузке шаблонов.')
+
+
 # Обработчик нажатий на кнопки с шаблонами
 @router_cmd_get_user_templ.callback_query(lambda callback: callback.data.startswith("templ_num_"))
 async def choose_templ(callback: CallbackQuery, state: FSMContext):
@@ -47,10 +58,21 @@ async def choose_templ(callback: CallbackQuery, state: FSMContext):
         await state.update_data(chosen_templ=chosen_templ) # Сохраняем переменную в контексте FSM
 
         await callback.message.edit_text(
-            text=f'Вы выбрали шаблон: "{chosen_templ}"',
+            text=f'Вы выбрали шаблон "{chosen_templ}"',
             parse_mode='Markdown',
             reply_markup=templ_actions_keyboard()
         )
+
+
+# Обработчик нажатия кнопки "Посмотреть глобальные очки"
+@router_cmd_get_user_templ.callback_query(F.data == "look_to_global_score")
+async def look_to_global_score(callback: CallbackQuery, state: FSMContext):
+    tg_id = callback.from_user.id
+    data = await state.get_data()
+    chosen_templ = data.get('chosen_templ')
+
+    if chosen_templ:
+
 
 
 # Обработчик нажатия кнопки "Отредактировать шаблон"

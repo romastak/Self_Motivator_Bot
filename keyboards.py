@@ -73,10 +73,10 @@ def cancel_keyboard():
 def templ_actions_keyboard():
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
+            [InlineKeyboardButton(text="Посмотреть глобальные очки", callback_data="look_to_global_score")],
             [InlineKeyboardButton(text="Отредактировать шаблон", callback_data="edit_templ")],
-            [InlineKeyboardButton(text="Изменить глобальные очки", callback_data="edit_templ")],
-            [InlineKeyboardButton(text="Обнулить глобальные очки", callback_data="edit_templ")],
-            [InlineKeyboardButton(text="Удалить шаблон", callback_data="delete_templ")]
+            [InlineKeyboardButton(text="Удалить шаблон", callback_data="delete_templ")],
+            [InlineKeyboardButton(text="Назад", callback_data="back_to_my_templs")]
         ]
     )
     return keyboard

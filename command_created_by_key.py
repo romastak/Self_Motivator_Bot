@@ -8,8 +8,7 @@ from aiogram.fsm.state import StatesGroup, State # Классы состояни
 from aiogram.fsm.context import FSMContext # Инструмент управления состояниями
 from aiogram.types import CallbackQuery
 from aiogram.filters.callback_data import CallbackData
-from keyboards import get_templ_key_keyboard
-from requests import get_user_templates, get_templ_key, get_all_templ_keys
+from requests import get_user_templates, get_templ_key, get_all_templ_keys, get_template_data_by_key, add_template_to_user
 import re
 
 router_cmd_cr_by_key = Router()
@@ -22,31 +21,32 @@ async def cmd_cr_by_key(message: Message, state: FSMContext):
     if state:
         await state.clear()
     await message.answer('Введите ключ:')
-    state.set_state(GetTemplByKey.key)
+    await state.set_state(GetTemplByKey.key)
 
 @router_cmd_cr_by_key.message(GetTemplByKey.key)
 async def cmd_cr_by_key_done(message: Message, state: FSMContext):
+    telegram_id = message.from_user.id
     await state.update_data(key=message.text)
     data = await state.get_data()
     key = data['key']
     templ_keys = await get_all_templ_keys()
+    print('тест')
+    print(templ_keys)
+    key = str(key)
 
     if key in templ_keys:
         # Извлекаем данные шаблона по ключу
         templ_name_val, templ_crits_val, templ_mnoj_val = await get_template_data_by_key(key)
+        print(templ_name_val, templ_crits_val, templ_mnoj_val)
+        result = await add_template_to_user(telegram_id, templ_name_val, templ_crits_val, templ_mnoj_val)
 
-        if template_data:
-            # Добавляем шаблон пользователю в базу данных
-            telegram_id = message.from_user.id
-            success = await add_template_to_user(telegram_id, templ_name_val, templ_crits_val, templ_mnoj_val)
+        if result:
+            await message.answer(f'Найден шаблон "{templ_name_val}".\n'
+                                 f'Вам добавлена копия шаблона.')
+        if not result:
+            await message.answer('Шаблон найден, но возникла ошибка при его добавлении.')
 
-            if success:
-                await message.answer('Шаблон успешно создан и добавлен в ваш список!')
-            else:
-                await message.answer('Произошла ошибка при добавлении шаблона.')
-        else:
-            await message.answer('Произошла ошибка при получении данных шаблона.')
     else:
-        await message.answer('Шаблон с таким ключом не найден.')
+        await message.answer('Шаблон не найден.')
 
     await state.clear()
