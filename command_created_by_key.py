@@ -9,6 +9,7 @@ from aiogram.fsm.context import FSMContext # Инструмент управле
 from aiogram.types import CallbackQuery
 from aiogram.filters.callback_data import CallbackData
 from requests import get_user_templates, get_templ_key, get_all_templ_keys, get_template_data_by_key, add_template_to_user
+from keyboards import main_keyboard
 import re
 
 router_cmd_cr_by_key = Router()
@@ -42,11 +43,8 @@ async def cmd_cr_by_key_done(message: Message, state: FSMContext):
 
         if result:
             await message.answer(f'Найден шаблон "{templ_name_val}".\n'
-                                 f'Вам добавлена копия шаблона.')
-        if not result:
-            await message.answer('Шаблон найден, но возникла ошибка при его добавлении.')
-
+                                 f'Вам добавлена копия шаблона.', reply_markup=main_keyboard())
     else:
-        await message.answer('Шаблон не найден.')
+        await message.answer('Шаблон не найден.', reply_markup=main_keyboard())
 
     await state.clear()

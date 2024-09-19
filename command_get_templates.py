@@ -10,18 +10,20 @@ from aiogram.types import CallbackQuery
 from aiogram.filters.callback_data import CallbackData
 from keyboards import main_keyboard, create_template_keyboard, cancel_keyboard, delete_crit_keyboard, delete_mnoj_keyboard, get_user_templ_keyboard
 from keyboards import templ_actions_keyboard, global_score_keyboard
-from requests import get_user_templates, delete_user_template, get_template_global_score, make_null_template_global_score
+from requests import get_user_templates, delete_user_template, get_template_global_score, make_null_template_global_score, change_template_global_score
 import re
 
 from requests import save_user_template
 
 router_cmd_get_user_templ = Router()
 
+# Класс для машины состояний для изменения глобальных очков
+class ChangeGlobalScore(StatesGroup):
+    score_val = State()
 
 class Choose_templ(StatesGroup):
     choosen_templ = State()
     templ_name = State()
-
 
 @router_cmd_get_user_templ.message(F.text == "Мои шаблоны")
 async def get_user_templ(message: Message):
@@ -34,6 +36,7 @@ async def get_user_templ(message: Message):
         await message.answer('У вас нет ни одного шаблона.')
 
 
+# Вернуться назад в список моих шаблонов
 @router_cmd_get_user_templ.callback_query(F.data == 'back_to_my_templs')
 async def back_to_my_templs(callback: CallbackQuery):
     telegram_id = callback.from_user.id
@@ -48,6 +51,7 @@ async def back_to_my_templs(callback: CallbackQuery):
 # Обработчик нажатий на кнопки с шаблонами в "Мои шаблоны"
 @router_cmd_get_user_templ.callback_query(lambda callback: callback.data.startswith("templ_id_"))
 async def choose_templ(callback: CallbackQuery, state: FSMContext):
+
     telegram_id = callback.from_user.id
     match = re.match(r"^templ_id_(\d+)$", callback.data)
     templ_id = callback.data
@@ -78,18 +82,48 @@ async def look_to_global_score(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     chosen_templ = data.get('chosen_templ')
     global_score = await get_template_global_score(chosen_templ[0])
-    state.update_data(templ_id=chosen_templ[0])
-    await callback.message.edit_text(f'Глобальные очки = {global_score}', reply_markup=global_score_keyboard())
+    await callback.message.edit_text(f'Глобальные очки шаблона "{chosen_templ[1]}" = {global_score}', reply_markup=global_score_keyboard())
+
+
+# Возврат назад в выбранный шаблон из меню глобальных очков
+@router_cmd_get_user_templ.callback_query(F.data == "back_to_the_templ")
+async def back_to_the_templ(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    chosen_templ = data.get('chosen_templ')
+
+    await callback.message.edit_text(
+        text=f'Вы выбрали шаблон "{chosen_templ[1]}"',
+        parse_mode='Markdown',
+        reply_markup=templ_actions_keyboard()
+    )
 
 
 # Обнуляем глобальные очки
 @router_cmd_get_user_templ.callback_query(F.data == "make_null_global_score_val")
-async def look_to_global_score(callback: CallbackQuery, state: FSMContext):
+async def null_to_global_score(callback: CallbackQuery, state: FSMContext):
     tg_id = callback.from_user.id
     data = await state.get_data()
-    templ_id = data.get('templ_id')
-    await make_null_template_global_score(templ_id)
-    await callback.message.edit_text('Глобальные очки шаблона успешно обнулены.')
+    chosen_templ = data.get('chosen_templ')
+    print(chosen_templ[0])
+    await make_null_template_global_score(chosen_templ[0])
+    await callback.message.edit_text(f'Значение глобальных очков шаблона "{chosen_templ[1]}" успешно обнулено.')
+
+
+# Изменяем глобальные очки
+@router_cmd_get_user_templ.callback_query(F.data == "change_global_score_val")
+async def change_to_global_score(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(ChangeGlobalScore.score_val)
+    await callback.message.edit_text(f'• Введите новое значение:')
+
+@router_cmd_get_user_templ.message(ChangeGlobalScore.score_val)
+async def look_to_global_score(message: Message, state: FSMContext):
+    await state.update_data(score_val=message.text)
+    tg_id = message.from_user.id
+    data = await state.get_data()
+    chosen_templ, score_val = data.get('chosen_templ'), data.get('score_val')
+    success = await change_template_global_score(chosen_templ[0], float(score_val))
+    if success:
+        await message.answer(f'Значение глобальных очков шаблона "{chosen_templ[1]}" успешно изменено на "{score_val}".', reply_markup=main_keyboard())
 
 
 # Обработчик нажатия кнопки "Отредактировать шаблон"
@@ -110,8 +144,8 @@ async def delete_template(callback: CallbackQuery, state: FSMContext):
         success = await delete_user_template(tg_id, chosen_templ[0])
 
         if success:
-            await callback.message.answer("Шаблон удален.", reply_markup=main_keyboard())
+            await callback.message.edit_text(f'Шаблон "{chosen_templ[1]}" успешно удален.')
         else:
-            await callback.message.answer("Не удалось удалить шаблон. Возможно, он уже удален.")
+            await callback.message.answer('Не удалось удалить шаблон. Возможно, он уже удален.')
     else:
-        await callback.message.answer("Не удалось найти выбранный шаблон.")
+        await callback.message.answer('Не удалось найти выбранный шаблон.')

@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import insert, delete
 from models import User, UserTemplates, TemplateCrit, TemplateMnoj, async_session, AsyncSessionLocal
 from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy import Integer
+from sqlalchemy import Integer, update
 import random
 
 
@@ -244,6 +244,22 @@ async def make_null_template_global_score(templ_id: int):
                 update(UserTemplates)
                 .where(UserTemplates.id == templ_id)  # Находим шаблон по id
                 .values(global_score=0)  # Обновляем поле global_score на 0
+            )
+
+            await session.commit()
+
+            return True
+
+
+# Изменяем глобальные очки шаблона
+async def change_template_global_score(templ_id, score_val):
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+
+            await session.execute(
+                update(UserTemplates)
+                .where(UserTemplates.id == templ_id)
+                .values(global_score=score_val)
             )
 
             await session.commit()
