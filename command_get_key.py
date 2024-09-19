@@ -16,6 +16,7 @@ router_cmd_get_key = Router()
 
 @router_cmd_get_key.message(F.text == "Получить ключ шаблона")
 async def get_user_templ(message: Message):
+
     telegram_id = message.from_user.id
     user_templ_list = await get_user_templates(telegram_id)
 
@@ -29,12 +30,20 @@ async def get_user_templ(message: Message):
 async def get_user_templ_done(callback: CallbackQuery):
     telegram_id = callback.from_user.id
     match = re.match(r"^templ_key_(\d+)$", callback.data)
+    templ_id = callback.data
+    templ_id = templ_id.split('_')
+    templ_id = templ_id[2]
 
     if match:
         template_num = int(match.group(1))
         user_templ_list = await get_user_templates(telegram_id)
-        chosen_templ = user_templ_list[template_num]
-        key = await get_templ_key(telegram_id, chosen_templ)
+
+        for templ in user_templ_list:
+            if int(templ_id) == int(templ[0]):
+                chosen_templ = templ
+                break
+
+        key = await get_templ_key(telegram_id, chosen_templ[0])
 
         await callback.message.edit_text(f'• Ключ получен! Скопируйте и отправьте ключ пользователю, чтобы он смог получить '
                                          f'ваш шаблон с помощью команды "Создать шаблон по ключу"')

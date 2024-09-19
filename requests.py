@@ -65,7 +65,7 @@ async def get_all_telegram_ids() -> list[int]:
     return telegram_ids
 
 
-async def get_user_templates(telegram_id: int) -> list[str]:
+async def get_user_templates(telegram_id: int) -> list[tuple[int, str]]:
     async with AsyncSessionLocal() as session:
         async with session.begin():
             # Получаем user_id по telegram_id
@@ -77,56 +77,49 @@ async def get_user_templates(telegram_id: int) -> list[str]:
             if user_id:
                 # Получаем все шаблоны пользователя
                 result = await session.execute(
-                    select(UserTemplates.template_name).filter_by(user_id=user_id)
+                    select(UserTemplates.id, UserTemplates.template_name).filter_by(user_id=user_id)
                 )
-                # Преобразуем результат в список
-                user_templ = [row[0] for row in result.fetchall()]
+                # Преобразуем результат в список кортежей
+                user_templ = [(row[0], row[1]) for row in result.fetchall()]
             else:
                 user_templ = []  # Если пользователь не найден, возвращаем пустой список
 
     return user_templ
 
-async def delete_user_template(telegram_id: int, template_name: str) -> bool:
+async def delete_user_template(telegram_id: int, templ_id: int) -> bool:
     async with AsyncSessionLocal() as session:
         async with session.begin():
+
             # Получаем user_id по telegram_id
             result = await session.execute(
                 select(User.id).filter_by(tg_id=telegram_id)
             )
             user_id = result.scalar()  # Извлекаем единственное значение (user_id)
 
-            if not user_id:
-                return False  # Если пользователь не найден, возвращаем False
-
-            # Получаем шаблон по имени и user_id
-            template_stmt = select(UserTemplates).filter_by(user_id=user_id, template_name=template_name)
-            result = await session.execute(template_stmt)
-            template = result.scalars().first()
-
-            if not template:
-                return False  # Если шаблон не найден, возвращаем False
-
             # Удаляем все связанные критерии
             await session.execute(
-                TemplateCrit.__table__.delete().where(TemplateCrit.user_template_id == template.id)
+                TemplateCrit.__table__.delete().where(TemplateCrit.user_template_id == templ_id)
             )
 
             # Удаляем все связанные множители
             await session.execute(
-                TemplateMnoj.__table__.delete().where(TemplateMnoj.user_template_id == template.id)
+                TemplateMnoj.__table__.delete().where(TemplateMnoj.user_template_id == templ_id)
             )
 
             # Удаляем сам шаблон
-            await session.delete(template)
+            await session.execute(
+                UserTemplates.__table__.delete().where(UserTemplates.id == templ_id)
+            )
 
         await session.commit()  # Сохранение всех изменений
 
     return True  # Возвращаем True, если удаление прошло успешно
 
 
-async def get_templ_key(telegram_id: int, template_name: str):
+async def get_templ_key(telegram_id: int, templ_id: int):
     async with AsyncSessionLocal() as session:
         async with session.begin():
+
             # Получаем user_id по telegram_id
             result = await session.execute(
                 select(User.id).filter_by(tg_id=telegram_id)
@@ -136,19 +129,11 @@ async def get_templ_key(telegram_id: int, template_name: str):
             if not user_id:
                 return False  # Если пользователь не найден, возвращаем False
 
-            # Получаем id шаблона по имени и user_id
+            # Получаем ключ по id шаблона
             result = await session.execute(
-                select(UserTemplates.id).filter_by(user_id=user_id, template_name=template_name)
+                select(UserTemplates.key_for_generating).filter_by(user_id=user_id, id=templ_id)
             )
-            template_id = result.scalar()  # Извлекаем единственное значение (template_id)
-
-            if not template_id:
-                return False  # Если шаблон не найден, возвращаем False
-
-            current_templ = await session.execute(
-                select(UserTemplates.key_for_generating).filter_by(id=template_id)
-            )
-            key = current_templ.scalar()
+            key = result.scalar()  # Извлекаем единственное значение (template_id)
 
             return key
 
@@ -238,10 +223,29 @@ async def add_template_to_user(telegram_id, templ_name_val, templ_crits_val, tem
 
 
 # Получаем глобальные очки шаблона
-async def get_templates_global_score(key: str):
+async def get_template_global_score(templ_id: int):
     async with AsyncSessionLocal() as session:
         async with session.begin():
-            templ_id = await session.execute(
-                select(UserTemplates.id).filter_by(key_for_generating=key)
+
+            global_score = await session.execute(
+                select(UserTemplates.global_score).filter_by(id=templ_id)
             )
-            templ_id_val = templ_id.scalar()
+            global_score_val = global_score.scalar()
+
+            return global_score_val
+
+
+# Обнуляем глобальные очки шаблона
+async def make_null_template_global_score(templ_id: int):
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+
+            await session.execute(
+                update(UserTemplates)
+                .where(UserTemplates.id == templ_id)  # Находим шаблон по id
+                .values(global_score=0)  # Обновляем поле global_score на 0
+            )
+
+            await session.commit()
+
+            return True
