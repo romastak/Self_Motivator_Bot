@@ -22,6 +22,8 @@ router_cmd_delete_mnoj = Router()
 router_delete_mnoj_el = Router()
 
 user_templates = {}
+is_editing = {}
+id_edit_templ = {}
 
 
 # Классы FSMContext
@@ -61,9 +63,13 @@ async def cmd_cr_templ(event: types.Message | types.CallbackQuery, state: FSMCon
             "Вы вошли в конструктор шаблонов.",
             reply_markup=create_template_keyboard()
         )
+
+        is_editing[telegram_id] = False
+
     elif isinstance(event, types.CallbackQuery):
         data = await state.get_data()
         chosen_templ = data.get('chosen_templ')[0]
+        id_edit_templ[telegram_id] = chosen_templ
         print(chosen_templ)
         templ_name_val, templ_crit_val, templ_mnoj_val = await get_template_data(key=None, templ_id=chosen_templ)
         print(templ_crit_val)
@@ -97,11 +103,12 @@ async def cmd_cr_templ(event: types.Message | types.CallbackQuery, state: FSMCon
                 crits_list.append(one_mnoj_dict)
                 index += 1
 
+        is_editing[telegram_id] = True
+
         await event.message.answer(
             f'Вы вошли в конструктор шаблона "{templ_name_val}".',
             reply_markup=create_template_keyboard()
         )
-
 
 
 @router_cmd_cr_templ.message(F.text == "+ Добавить критерий") # Запускается функция по команде
@@ -501,7 +508,11 @@ async def cmd_save_templ(message: Message, state: FSMContext):
 
     if current_user_templ:
         # Переходим в состояние ожидания имени шаблона
-        await message.answer("• Введите название шаблона.")
+        if is_editing[telegram_id] == False:
+            await message.answer("• Введите название шаблона.")
+        elif is_editing[telegram_id] == True:
+            await message.answer("• Введите новое название шаблона.")
+
         await state.set_state(SaveTemplate.waiting_for_template_name)
     else:
         await message.answer("Шаблон пуст.")
@@ -513,16 +524,32 @@ async def get_template_name(message: Message, state: FSMContext):
     key_for_generating = str(random.randint(1000000000, 9999999999))
     current_user_templ = user_templates.get(telegram_id)
 
-    await save_user_template(
-        telegram_id=telegram_id,
-        username=message.from_user.first_name,
-        template_name=template_name,
-        key_for_generating=key_for_generating,
-        crits=current_user_templ['crit'],
-        mnojs=current_user_templ['mnoj']
-    )
+    if is_editing[telegram_id] == False:
+        await save_user_template(
+            telegram_id=telegram_id,
+            username=message.from_user.first_name,
+            template_name=template_name,
+            key_for_generating=key_for_generating,
+            crits=current_user_templ['crit'],
+            mnojs=current_user_templ['mnoj']
+        )
 
-    await message.answer("Ваш шаблон успешно сохранен!", reply_markup=main_keyboard())
-    await state.clear()
-    if telegram_id in user_templates:
-        user_templates.pop(telegram_id)
+        await message.answer(f'Ваш шаблон "{template_name}" успешно сохранен!', reply_markup=main_keyboard())
+        await state.clear()
+        if telegram_id in user_templates:
+            user_templates.pop(telegram_id)
+
+    elif is_editing[telegram_id] == True:
+        await edit_user_template(
+            telegram_id=telegram_id,
+            username=message.from_user.first_name,
+            template_name=template_name,
+            key_for_generating=key_for_generating,
+            crits=current_user_templ['crit'],
+            mnojs=current_user_templ['mnoj']
+        )
+
+        await message.answer(f'Ваш шаблон "{template_name}" успешно отредактирован!', reply_markup=main_keyboard())
+        await state.clear()
+        if telegram_id in user_templates:
+            user_templates.pop(telegram_id)
