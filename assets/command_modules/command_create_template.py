@@ -3,13 +3,14 @@ import random
 import re
 from aiogram.types import Message
 from aiogram.filters import Command
-from aiogram import F, Router
+from aiogram import F, Router, types
 from aiogram.fsm.state import StatesGroup, State # Классы состояний
 from aiogram.fsm.context import FSMContext # Инструмент управления состояниями
 from aiogram.types import CallbackQuery
 from aiogram.filters.callback_data import CallbackData
 from assets.other_modules.keyboards import main_keyboard, create_template_keyboard, cancel_keyboard, delete_crit_keyboard, delete_mnoj_keyboard
-from assets.db_modules.requests import save_user_template
+from assets.db_modules.requests import save_user_template, get_template_data
+from assets.command_modules.command_get_templates import Choose_templ
 
 
 router_cmd_cr_templ = Router()
@@ -46,18 +47,60 @@ class CritDelete(StatesGroup):
     which_crit_to_delete = State()
 
 
+@router_cmd_cr_templ.callback_query(F.data == "edit_templ")
 @router_cmd_cr_templ.message(F.text == "Создать шаблон")
-async def cmd_cr_templ(message: Message):
+async def cmd_cr_templ(event: types.Message | types.CallbackQuery, state: FSMContext):
 
     # Очистка переменных
-    telegram_id = message.from_user.id
+    telegram_id = event.from_user.id
     if telegram_id in user_templates:
         user_templates.pop(telegram_id)
 
-    await message.answer(
-        "Вы вошли в конструктор шаблонов.",
-        reply_markup=create_template_keyboard()
-    )
+    if isinstance(event, types.Message):
+        await event.answer(
+            "Вы вошли в конструктор шаблонов.",
+            reply_markup=create_template_keyboard()
+        )
+    elif isinstance(event, types.CallbackQuery):
+        data = await state.get_data()
+        chosen_templ = data.get('chosen_templ')[0]
+        print(chosen_templ)
+        templ_name_val, templ_crit_val, templ_mnoj_val = await get_template_data(key=None, templ_id=chosen_templ)
+        print(templ_crit_val)
+        # Если для пользователя еще не создан словарь, создаем его
+        if telegram_id not in user_templates:
+            user_templates[telegram_id] = {"crit": [], "mnoj": []}
+
+        # Записываем данные из БД в user_templates в нужном формате
+        print(templ_crit_val, templ_mnoj_val)
+        if templ_crit_val:
+            index = 0
+            for crit in templ_crit_val:
+                one_crit_dict = {}
+                one_crit_dict['name'] = crit[0]
+                one_crit_dict['score'] = crit[1]
+                one_crit_dict['comment'] = crit[2]
+
+                crits_list = user_templates[telegram_id]['crit']
+                crits_list.append(one_crit_dict)
+                index += 1
+
+        if templ_mnoj_val:
+            index = 0
+            for mnoj in templ_mnoj_val:
+                one_mnoj_dict = {}
+                one_mnoj_dict['name'] = mnoj[0]
+                one_mnoj_dict['score'] = mnoj[1]
+                one_mnoj_dict['comment'] = mnoj[2]
+
+                crits_list = user_templates[telegram_id]['mnoj']
+                crits_list.append(one_mnoj_dict)
+                index += 1
+
+        await event.message.answer(
+            f'Вы вошли в конструктор шаблона "{templ_name_val}".',
+            reply_markup=create_template_keyboard()
+        )
 
 
 

@@ -8,7 +8,7 @@ from aiogram.fsm.state import StatesGroup, State # Классы состояни
 from aiogram.fsm.context import FSMContext # Инструмент управления состояниями
 from aiogram.types import CallbackQuery
 from aiogram.filters.callback_data import CallbackData
-from assets.db_modules.requests import get_user_templates, get_templ_key, get_all_templ_keys, get_template_data_by_key, add_template_to_user
+from assets.db_modules.requests import get_user_templates, get_templ_key, get_all_templ_keys, get_template_data, add_template_to_user
 from assets.other_modules.keyboards import main_keyboard
 
 
@@ -37,7 +37,7 @@ async def cmd_cr_by_key_done(message: Message, state: FSMContext):
 
     if key in templ_keys:
         # Извлекаем данные шаблона по ключу
-        templ_name_val, templ_crits_val, templ_mnoj_val = await get_template_data_by_key(key)
+        templ_name_val, templ_crits_val, templ_mnoj_val = await get_template_data(key=key, templ_id=None)
         print(templ_name_val, templ_crits_val, templ_mnoj_val)
         result = await add_template_to_user(telegram_id, templ_name_val, templ_crits_val, templ_mnoj_val)
 

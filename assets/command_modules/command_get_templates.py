@@ -11,9 +11,7 @@ from aiogram.filters.callback_data import CallbackData
 from assets.other_modules.keyboards import main_keyboard, create_template_keyboard, cancel_keyboard, delete_crit_keyboard, delete_mnoj_keyboard, get_user_templ_keyboard
 from assets.other_modules.keyboards import templ_actions_keyboard, global_score_keyboard
 from assets.db_modules.requests import get_user_templates, delete_user_template, get_template_global_score, make_null_template_global_score, change_template_global_score
-
-
-from requests import save_user_template
+from assets.db_modules.requests import save_user_template
 
 router_cmd_get_user_templ = Router()
 
@@ -124,12 +122,6 @@ async def look_to_global_score(message: Message, state: FSMContext):
     success = await change_template_global_score(chosen_templ[0], float(score_val))
     if success:
         await message.answer(f'Значение глобальных очков шаблона "{chosen_templ[1]}" успешно изменено на "{score_val}".', reply_markup=main_keyboard())
-
-
-# Обработчик нажатия кнопки "Отредактировать шаблон"
-@router_cmd_get_user_templ.callback_query(F.data == "edit_templ")
-async def edit_template(callback: CallbackQuery, state: FSMContext):
-    await callback.message.answer("Функция находится в разработке")
 
 
 # Обработчик нажатия кнопки "Удалить шаблон"

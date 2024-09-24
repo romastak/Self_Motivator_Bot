@@ -146,13 +146,18 @@ async def get_all_templ_keys() -> list[int]:
     return templ_keys
 
 # Получаем данные шаблона по ключу
-async def get_template_data_by_key(key: str):
+async def get_template_data(key: str, templ_id):
     async with AsyncSessionLocal() as session:
         async with session.begin():
-            templ_id = await session.execute(
-                select(UserTemplates.id).filter_by(key_for_generating=key)
-            )
-            templ_id_val = templ_id.scalar()
+            # Получение данных шаблона по ключу
+            if templ_id == None:
+                templ_id = await session.execute(
+                    select(UserTemplates.id).filter_by(key_for_generating=key)
+                )
+                templ_id_val = templ_id.scalar()
+            # Получение данных шаблона по ID
+            elif key == None:
+                templ_id_val = templ_id
 
             templ_name = await session.execute(
                 select(UserTemplates.template_name).filter_by(id=templ_id_val)
@@ -265,3 +270,32 @@ async def change_template_global_score(templ_id, score_val):
             await session.commit()
 
             return True
+
+# Получаем данные шаблона для редактирования
+# Добавляем шаблон пользователю, который получен по ключу
+async def get_templ_data_for_edit(templ_id):
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+            templ_id = await session.execute(
+                select(UserTemplates.id).filter_by(key_for_generating=key)
+            )
+            templ_id_val = templ_id.scalar()
+
+            templ_name = await session.execute(
+                select(UserTemplates.template_name).filter_by(id=templ_id_val)
+            )
+            templ_name_val = templ_name.scalar()
+
+            templ_crit = await session.execute(
+                select(TemplateCrit.crit_name, TemplateCrit.crit_score, TemplateCrit.crit_comment).filter_by(
+                    user_template_id=templ_id_val)
+            )
+            templ_crit_val = templ_crit.all()
+
+            templ_mnoj = await session.execute(
+                select(TemplateMnoj.mnoj_name, TemplateMnoj.mnoj_score, TemplateMnoj.mnoj_comment).filter_by(
+                    user_template_id=templ_id_val)
+            )
+            templ_mnoj_val = templ_mnoj.all()
+
+            return templ_name_val, templ_crit_val, templ_mnoj_val
