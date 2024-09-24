@@ -1,7 +1,7 @@
 from aiogram.types import Message
 from aiogram import Router
 from aiogram.filters import CommandStart # Команда /start
-from keyboards import main_keyboard
+from assets.other_modules.keyboards import main_keyboard
 
 
 router_cmd_start = Router()

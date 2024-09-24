@@ -1,11 +1,11 @@
+import random
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import insert, delete
-from models import User, UserTemplates, TemplateCrit, TemplateMnoj, async_session, AsyncSessionLocal
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import Integer, update
-import random
+from assets.db_modules.models import User, UserTemplates, TemplateCrit, TemplateMnoj, async_session, AsyncSessionLocal
 
 
 async def save_user_template(telegram_id: int, username: str, template_name: str, key_for_generating: str, crits: list, mnojs: list):

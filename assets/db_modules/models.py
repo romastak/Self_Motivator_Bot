@@ -1,11 +1,11 @@
+import asyncpg
+import asyncio
 from sqlalchemy import BigInteger, String, ForeignKey
 from sqlalchemy.future import select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine, AsyncSession
 from sqlalchemy import Integer
-import asyncpg
-import asyncio
 
 engine = create_async_engine(url='postgresql+asyncpg://postgres:1234@127.0.0.1:5432/motivator_db')  # Создание движка
 async_session = async_sessionmaker(engine)  # Подключение к БД

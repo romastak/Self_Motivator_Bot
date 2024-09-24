@@ -5,16 +5,16 @@ from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart # Команда /start
 from aiogram.types import Message
 
-from keyboards import main_keyboard
-from command_start import router_cmd_start
-from command_about import router_cmd_about
-from command_example import router_cmd_ex
-from command_create_template import router_cmd_cr_templ, router_cancel, router_cmd_save_templ, router_cancel, router_cmd_delete_crit, router_delete_crit_el, router_cmd_delete_mnoj, router_delete_mnoj_el
-from command_get_quote import router_get_quote
-from command_get_templates import router_cmd_get_user_templ
-from command_get_key import router_cmd_get_key
-from command_created_by_key import router_cmd_cr_by_key
-from requests import get_all_telegram_ids
+from assets.other_modules.keyboards import main_keyboard
+from assets.command_modules.command_start import router_cmd_start
+from assets.command_modules.command_about import router_cmd_about
+from assets.command_modules.command_example import router_cmd_ex
+from assets.command_modules.command_create_template import router_cmd_cr_templ, router_cancel, router_cmd_save_templ, router_cancel, router_cmd_delete_crit, router_delete_crit_el, router_cmd_delete_mnoj, router_delete_mnoj_el
+from assets.command_modules.command_get_quote import router_get_quote
+from assets.command_modules.command_get_templates import router_cmd_get_user_templ
+from assets.command_modules.command_get_key import router_cmd_get_key
+from assets.command_modules.command_created_by_key import router_cmd_cr_by_key
+from assets.db_modules.requests import get_all_telegram_ids
 
 
 # Инициализация бота и диспетчера

@@ -1,6 +1,6 @@
 import asyncio
 import random
-
+import re
 from aiogram.types import Message
 from aiogram.filters import Command
 from aiogram import F, Router
@@ -8,10 +8,10 @@ from aiogram.fsm.state import StatesGroup, State # Классы состояни
 from aiogram.fsm.context import FSMContext # Инструмент управления состояниями
 from aiogram.types import CallbackQuery
 from aiogram.filters.callback_data import CallbackData
-from keyboards import main_keyboard, create_template_keyboard, cancel_keyboard, delete_crit_keyboard, delete_mnoj_keyboard, get_user_templ_keyboard
-from keyboards import templ_actions_keyboard, global_score_keyboard
-from requests import get_user_templates, delete_user_template, get_template_global_score, make_null_template_global_score, change_template_global_score
-import re
+from assets.other_modules.keyboards import main_keyboard, create_template_keyboard, cancel_keyboard, delete_crit_keyboard, delete_mnoj_keyboard, get_user_templ_keyboard
+from assets.other_modules.keyboards import templ_actions_keyboard, global_score_keyboard
+from assets.db_modules.requests import get_user_templates, delete_user_template, get_template_global_score, make_null_template_global_score, change_template_global_score
+
 
 from requests import save_user_template
 

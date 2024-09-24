@@ -1,14 +1,13 @@
 import asyncio
 import random
 import aiohttp
-
 from aiogram.types import Message
 from aiogram.filters import Command
 from aiogram import F, Router
-from keyboards import main_keyboard, create_template_keyboard, cancel_keyboard, delete_crit_keyboard
 from aiogram.fsm.state import StatesGroup, State # Классы состояний
 from aiogram.fsm.context import FSMContext # Инструмент управления состояниями
-from requests import save_user_template
+from assets.db_modules.requests import save_user_template
+from assets.other_modules.keyboards import main_keyboard, create_template_keyboard, cancel_keyboard, delete_crit_keyboard
 
 
 router_get_quote = Router()
