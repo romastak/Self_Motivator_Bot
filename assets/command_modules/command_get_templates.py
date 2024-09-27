@@ -65,7 +65,7 @@ async def choose_templ(callback: CallbackQuery, state: FSMContext):
                 break
 
         await state.update_data(chosen_templ=chosen_templ) # Сохраняем переменную в контексте FSM
-
+        print(await state.get_data())
         await callback.message.edit_text(
             text=f'Вы выбрали шаблон "{chosen_templ[1]}"',
             parse_mode='Markdown',

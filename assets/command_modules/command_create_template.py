@@ -9,7 +9,7 @@ from aiogram.fsm.context import FSMContext # Инструмент управле
 from aiogram.types import CallbackQuery
 from aiogram.filters.callback_data import CallbackData
 from assets.other_modules.keyboards import main_keyboard, create_template_keyboard, cancel_keyboard, delete_crit_keyboard, delete_mnoj_keyboard
-from assets.db_modules.requests import save_user_template, get_template_data
+from assets.db_modules.requests import save_user_template, edit_user_template, get_template_data
 from assets.command_modules.command_get_templates import Choose_templ
 
 
@@ -163,9 +163,8 @@ async def add_crit_end(message: Message, state: FSMContext):
     user_templates[telegram_id]["crit"].append(data)
 
     await state.clear()
-    await message.answer(f"Критерий < {data['name']} > успешно добавлен в шаблон.", reply_markup=create_template_keyboard())
+    await message.answer(f'Критерий "{data["""name"""]}" успешно добавлен в шаблон.', reply_markup=create_template_keyboard())
     print(user_templates)  # Для проверки в консоли
-
 
 
 @router_cmd_cr_templ.message(F.text == "+ Добавить множитель")
@@ -453,7 +452,7 @@ async def cmd_delete_mnoj(message: Message):
             for mnoj_name in current_user_mnoj:
                 clear_mnoj_name = mnoj_name.get('name')
                 mnoj_list.append(clear_mnoj_name)
-            await message.answer(text='Выберите критерий для удаления:', reply_markup=delete_mnoj_keyboard(mnoj_list))
+            await message.answer(text='Выберите множитель для удаления:', reply_markup=delete_mnoj_keyboard(mnoj_list))
 
         else:
             await message.answer('Вы не добавили ни одного множителя')
@@ -490,14 +489,12 @@ async def cmd_exit(message: Message):
         user_templates.pop(telegram_id)
 
 
-
 @router_cancel.message(F.text == "Отмена")
 async def cmd_cancel(message: Message, state: FSMContext):
     telegram_id = message.from_user.id
 
     await state.clear()
     await message.answer("Создание отменено", reply_markup=create_template_keyboard())
-
 
 
 @router_cmd_save_templ.message(F.text == "Сохранить шаблон")
@@ -524,7 +521,7 @@ async def get_template_name(message: Message, state: FSMContext):
     key_for_generating = str(random.randint(1000000000, 9999999999))
     current_user_templ = user_templates.get(telegram_id)
 
-    if is_editing[telegram_id] == False:
+    if not is_editing[telegram_id]:
         await save_user_template(
             telegram_id=telegram_id,
             username=message.from_user.first_name,
@@ -539,17 +536,21 @@ async def get_template_name(message: Message, state: FSMContext):
         if telegram_id in user_templates:
             user_templates.pop(telegram_id)
 
-    elif is_editing[telegram_id] == True:
+    elif is_editing[telegram_id]:
+        chosen_templ_id = id_edit_templ[telegram_id]
+
         await edit_user_template(
             telegram_id=telegram_id,
             username=message.from_user.first_name,
             template_name=template_name,
-            key_for_generating=key_for_generating,
             crits=current_user_templ['crit'],
-            mnojs=current_user_templ['mnoj']
+            mnojs=current_user_templ['mnoj'],
+            chosen_templ_id=chosen_templ_id
         )
 
         await message.answer(f'Ваш шаблон "{template_name}" успешно отредактирован!', reply_markup=main_keyboard())
         await state.clear()
         if telegram_id in user_templates:
             user_templates.pop(telegram_id)
+
+        id_edit_templ.pop(telegram_id)

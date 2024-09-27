@@ -56,14 +56,14 @@ async def save_user_template(telegram_id: int, username: str, template_name: str
 
         await session.commit()  # Сохранение всех изменений
 
-async def edit_user_template(telegram_id: int, username: str, template_name: str, key_for_generating: str, crits: list, mnojs: list): # TODO ended this func
+async def edit_user_template(telegram_id: int, username: str, template_name: str, crits: list, mnojs: list, chosen_templ_id: int): # TODO ended this func
     async with async_session() as session:
         async with session.begin():
+
             # Проверка существования пользователя в базе
             user_stmt = select(User).where(User.tg_id == telegram_id)
             result = await session.execute(user_stmt)
             user = result.scalars().first()
-
             if not user:
                 # Если пользователя нет в базе, нужно его создать
                 new_user = User(tg_id=telegram_id, username=username)  # username можно взять из другого места
@@ -73,11 +73,29 @@ async def edit_user_template(telegram_id: int, username: str, template_name: str
             else:
                 user_id = user.id
 
-            # Сохранение шаблона в таблицу user_templates
+            # Запоминаем глобальные очки и ключ генерации
+            templ_global_score = await session.execute(
+                select(UserTemplates.global_score).filter_by(id=chosen_templ_id)
+            )
+            templ_global_score = templ_global_score.scalar()
+
+            templ_key_for_generating = await session.execute(
+                select(UserTemplates.key_for_generating).filter_by(id=chosen_templ_id)
+            )
+            templ_key_for_generating = templ_key_for_generating.scalar()
+
+
+            # Удаляем шаблон и связанные таблы
+            await session.execute(delete(TemplateCrit).filter_by(user_template_id=chosen_templ_id))
+            await session.execute(delete(TemplateMnoj).filter_by(user_template_id=chosen_templ_id))
+            await session.execute(delete(UserTemplates).filter_by(id=chosen_templ_id))
+
+            # И создаем обновленный, записывая очки и ключ с удаленного
             new_template = UserTemplates(
                 user_id=user_id,
                 template_name=template_name,
-                key_for_generating=key_for_generating
+                key_for_generating=templ_key_for_generating,
+                global_score=templ_global_score
             )
             session.add(new_template)
             await session.flush()  # Получаем ID шаблона
