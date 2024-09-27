@@ -1,75 +1,111 @@
-# import sqlite3
-# import random
-# import keyboards
-# from pyrogram import Client, filters
-# import asyncio
-#
-# user_states = {}  # Хранение состояния пользователей
-#
-# def create_report_main(client: Client):
-#     @client.on_message(filters.text & filters.regex("Создать отчет"))
-#     async def create_report(client: Client, message):
-#         user_id = message.from_user.id
-#         conn = sqlite3.connect('reports.db')
-#         cursor = conn.cursor()
-#
-#         cursor.execute('''SELECT user_template_id, name FROM user_template WHERE user_id = ?''', (user_id,))
-#         templates = cursor.fetchall()
-#
-#         if not templates:
-#             await message.reply_text("• У вас нет сохраненных шаблонов.")
-#             conn.close()
-#             return
-#
-#         # Запрос выбора шаблона
-#         response = "Выберите шаблон для отчета:\n"
-#         for idx, template in enumerate(templates):
-#             response += f"{idx + 1}. {template[1]}\n"
-#         await message.reply_text(response)
-#
-#         user_states[user_id] = asyncio.Future()
-#         selected_template_index = await user_states[user_id]
-#
-#         try:
-#             template_index = int(selected_template_index) - 1
-#             template_id = templates[template_index][0]
-#         except (ValueError, IndexError):
-#             await message.reply_text("• Неверный выбор. Пожалуйста, выберите правильный номер шаблона.")
-#             conn.close()
-#             return
-#
-#         # Генерация отчета
-#         cursor.execute('''SELECT critery_name, critery_score, critery_comment FROM template_critery
-#                           JOIN template_structure ON template_critery.template_structure_id = template_structure.template_structure_id
-#                           WHERE template_structure.user_template_id = ?''', (template_id,))
-#         criterions = cursor.fetchall()
-#
-#         cursor.execute('''SELECT mnojitel_name, mnojitel_score, mnojitel_comment FROM template_mnojitel
-#                           JOIN template_structure ON template_mnojitel.template_structure_id = template_structure.template_structure_id
-#                           WHERE template_structure.user_template_id = ?''', (template_id,))
-#         mnojitels = cursor.fetchall()
-#
-#         report = "Отчет:\n\nКритерии:\n"
-#         for crit in criterions:
-#             description, score_per_hour, comment_bool = crit
-#             report += f"• {description}: {score_per_hour} баллов/час\n"
-#             if comment_bool:
-#                 report += "  Комментарий: Да\n"
-#
-#         report += "\nМножители:\n"
-#         for mnoj in mnojitels:
-#             description, mnoj_score, comment_bool = mnoj
-#             report += f"• {description}: x{mnoj_score}\n"
-#             if comment_bool:
-#                 report += "  Комментарий: Да\n"
-#
-#         await message.reply_text(report, reply_markup=keyboards.main_keyboard())
-#
-#         conn.close()
-#
-#     # Функция для получения ответа от пользователя
-#     @client.on_message(filters.private)
-#     async def receive_response(client: Client, message):
-#         user_id = message.from_user.id
-#         if user_id in user_states:
-#             user_states[user_id].set_result(message.text)
+import asyncio
+import random
+import re
+from aiogram.types import Message
+from aiogram.filters import Command
+from aiogram import F, Router, types
+from aiogram.fsm.state import StatesGroup, State # Классы состояний
+from aiogram.fsm.context import FSMContext # Инструмент управления состояниями
+from aiogram.types import CallbackQuery
+from aiogram.filters.callback_data import CallbackData
+from assets.other_modules.keyboards import main_keyboard, create_template_keyboard, cancel_keyboard, get_user_templ_keyboard
+from assets.db_modules.requests import save_user_template, edit_user_template, get_template_data, get_user_templates
+from assets.command_modules.command_get_templates import Choose_templ
+
+router_create_report = Router()
+user_templ_crits = {}
+user_templ_mnoj = {}
+user_templ_name = {}
+
+class Crits(StatesGroup):
+    crit_score = State()
+
+class Mnoj(StatesGroup):
+    mnoj_score = State()
+
+@router_create_report.message(F.text == 'Создать отчёт')
+async def create_report(message: Message):
+    tg_id = message.from_user.id
+    templ_list = await get_user_templates(tg_id)
+    await message.answer('• Выберите шаблон для отчета',
+                         reply_markup=get_user_templ_keyboard(templ_list, True)
+                         )
+
+@router_create_report.callback_query(lambda callback: callback.data.startswith('rep_templ_id_'))
+async def start_report(callback: CallbackQuery, state: FSMContext):
+    telegram_id = callback.from_user.id
+    match = re.match(r"^rep_templ_id_(\d+)$", callback.data)
+    templ_id = callback.data
+    templ_id = templ_id.split('_')
+    templ_id = templ_id[3]
+    if match:
+        user_templ_list = await get_user_templates(telegram_id)
+
+        for templ in user_templ_list:
+            if int(templ_id) == int(templ[0]):
+                chosen_templ = templ
+                break
+
+        templ_name_val, templ_crit_val, templ_mnoj_val = await get_template_data(None, chosen_templ[0])
+
+        print(templ_name_val)
+        print(templ_crit_val)
+        print(templ_mnoj_val)
+        await state.set_state(Crits.crit_score)
+
+        user_templ_name[telegram_id] = templ_name_val
+        if templ_mnoj_val:
+            user_templ_mnoj[telegram_id] = templ_mnoj_val
+        if templ_crit_val:
+            user_templ_crits[telegram_id] = templ_crit_val
+            await callback.message.edit_text(f'• Введите количество времени в часах сколько вы потратили за межотчетный'
+                                                f' период на критерий "{templ_crit_val[0][0]}".\n'
+                                                f'Например: 2.5')
+
+@router_create_report.message(Crits.crit_score)
+async def fill_report_crits(message: Message, state: FSMContext):
+
+    tg_id = message.from_user.id
+    # Удаляем критерий из словаря
+    user_templ_crits[tg_id].pop(0)
+    print(user_templ_crits)
+
+    if user_templ_crits[tg_id]:
+        templ_crit_val = user_templ_crits[tg_id][0][0]
+        await message.answer(f'• Введите количество времени в часах сколько вы потратили за межотчетный'
+                                         f' период на критерий "{templ_crit_val}".\n'
+                                         f'Например: 2.5')
+        await state.set_state(Crits.crit_score)
+    elif not user_templ_crits[tg_id]:
+        if user_templ_mnoj:
+            await state.set_state(Mnoj.mnoj_score)
+
+@router_create_report.message(Mnoj.mnoj_score)
+async def fill_report_mnoj(message: Message, state: FSMContext):
+
+    tg_id = message.from_user.id
+    # Удаляем множ из словаря
+    mnoj = user_templ_mnoj[tg_id].pop(0)
+    print(user_templ_mnoj)
+
+    await message.answer(f'Совершали ли вы действия, предусмотренные множителем "{mnoj[0]}"?\n'
+                         f'• Отправьте "1", если да.\n'
+                         f'• Отправьте "0", если нет.')
+
+    if user_templ_mnoj[tg_id]:
+        await state.set_state(Mnoj.mnoj_score)
+    if not user_templ_mnoj[tg_id]:
+        print('done')
+
+# TODO i need to add comment in filling report and finished this module
+
+
+
+
+
+
+
+
+
+
+

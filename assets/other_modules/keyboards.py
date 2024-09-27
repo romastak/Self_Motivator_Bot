@@ -44,12 +44,16 @@ def delete_mnoj_keyboard(mnoj_list):
         n += 1
     return keyboard.adjust(1).as_markup()
 
-def get_user_templ_keyboard(templ_list):
+def get_user_templ_keyboard(templ_list, for_report):
     keyboard = InlineKeyboardBuilder()
     n = 0
     print(templ_list)
-    for el in templ_list:
-        keyboard.add(InlineKeyboardButton(text=el[1], callback_data=str(f'templ_id_{el[0]}')))
+    if not for_report:
+        for el in templ_list:
+            keyboard.add(InlineKeyboardButton(text=el[1], callback_data=str(f'templ_id_{el[0]}')))
+    if for_report:
+        for el in templ_list:
+            keyboard.add(InlineKeyboardButton(text=el[1], callback_data=str(f'rep_templ_id_{el[0]}')))
     return keyboard.adjust(1).as_markup()
 
 def get_templ_key_keyboard(templ_list):

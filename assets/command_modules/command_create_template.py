@@ -119,8 +119,8 @@ async def add_crit_one(message: Message, state: FSMContext):
 
     await state.set_state(Add_crit.name) # Установить состояние машины
     await message.answer(
-        f"Введите новый критерий.\n"
-        f"• Например: Изучение Python",
+        f"• Введите новый критерий.\n"
+        f"Например: Изучение Python",
         reply_markup=cancel_keyboard()
     )
 

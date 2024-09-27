@@ -29,7 +29,7 @@ async def get_user_templ(message: Message):
     user_templ_list = await get_user_templates(telegram_id)
 
     if user_templ_list != []:
-        await message.answer(text='Ваши шаблоны:', reply_markup=get_user_templ_keyboard(user_templ_list))
+        await message.answer(text='Ваши шаблоны:', reply_markup=get_user_templ_keyboard(user_templ_list, False))
     else:
         await message.answer('У вас нет ни одного шаблона.')
 
@@ -41,7 +41,7 @@ async def back_to_my_templs(callback: CallbackQuery):
     user_templ_list = await get_user_templates(telegram_id)
 
     if user_templ_list != []:
-        await callback.message.edit_text(text='Ваши шаблоны:', reply_markup=get_user_templ_keyboard(user_templ_list))
+        await callback.message.edit_text(text='Ваши шаблоны:', reply_markup=get_user_templ_keyboard(user_templ_list, False))
     else:
         await callback.message.edit_text(text='Возникла ошибка при загрузке шаблонов.')
 
@@ -49,7 +49,6 @@ async def back_to_my_templs(callback: CallbackQuery):
 # Обработчик нажатий на кнопки с шаблонами в "Мои шаблоны"
 @router_cmd_get_user_templ.callback_query(lambda callback: callback.data.startswith("templ_id_"))
 async def choose_templ(callback: CallbackQuery, state: FSMContext):
-
     telegram_id = callback.from_user.id
     match = re.match(r"^templ_id_(\d+)$", callback.data)
     templ_id = callback.data

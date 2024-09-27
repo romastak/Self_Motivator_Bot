@@ -14,6 +14,7 @@ from assets.command_modules.command_get_quote import router_get_quote
 from assets.command_modules.command_get_templates import router_cmd_get_user_templ
 from assets.command_modules.command_get_key import router_cmd_get_key
 from assets.command_modules.command_created_by_key import router_cmd_cr_by_key
+from assets.command_modules.command_create_report import router_create_report
 from assets.db_modules.requests import get_all_telegram_ids
 
 
@@ -37,6 +38,7 @@ async def main():
     dp.include_router(router_cmd_get_user_templ)
     dp.include_router(router_cmd_get_key)
     dp.include_router(router_cmd_cr_by_key)
+    dp.include_router(router_create_report)
     tg_ids = await get_all_telegram_ids()
 
     for id in tg_ids: # Отправляем всем main_keyboard при запуске бота
