@@ -16,12 +16,17 @@ router_create_report = Router()
 user_templ_crits = {}
 user_templ_mnoj = {}
 user_templ_name = {}
+user_templ_crits_score = {}
+user_templ_mnoj_score = {}
 
 class Crits(StatesGroup):
     crit_score = State()
 
 class Mnoj(StatesGroup):
     mnoj_score = State()
+
+class ReportCreating(StatesGroup):
+    just_state = State()
 
 @router_create_report.message(F.text == 'Создать отчёт')
 async def create_report(message: Message):
@@ -33,13 +38,13 @@ async def create_report(message: Message):
 
 @router_create_report.callback_query(lambda callback: callback.data.startswith('rep_templ_id_'))
 async def start_report(callback: CallbackQuery, state: FSMContext):
-    telegram_id = callback.from_user.id
+    tg_id = callback.from_user.id
     match = re.match(r"^rep_templ_id_(\d+)$", callback.data)
     templ_id = callback.data
     templ_id = templ_id.split('_')
     templ_id = templ_id[3]
     if match:
-        user_templ_list = await get_user_templates(telegram_id)
+        user_templ_list = await get_user_templates(tg_id)
 
         for templ in user_templ_list:
             if int(templ_id) == int(templ[0]):
@@ -53,32 +58,42 @@ async def start_report(callback: CallbackQuery, state: FSMContext):
         print(templ_mnoj_val)
         await state.set_state(Crits.crit_score)
 
-        user_templ_name[telegram_id] = templ_name_val
+        user_templ_name[tg_id] = templ_name_val
         if templ_mnoj_val:
-            user_templ_mnoj[telegram_id] = templ_mnoj_val
+            user_templ_mnoj[tg_id] = templ_mnoj_val
         if templ_crit_val:
-            user_templ_crits[telegram_id] = templ_crit_val
+            user_templ_crits[tg_id] = templ_crit_val
             await callback.message.edit_text(f'• Введите количество времени в часах сколько вы потратили за межотчетный'
                                                 f' период на критерий "{templ_crit_val[0][0]}".\n'
                                                 f'Например: 2.5')
+
+        # Удаляем критерий из словаря
+        user_templ_crits[tg_id].pop(0)
+        print(user_templ_crits)
+
+        if user_templ_crits[tg_id]:
+            await state.set_state(Crits.crit_score)
+        elif not user_templ_crits[tg_id]:
+            await state.set_state(Mnoj.mnoj_score)
+            print('crits done')
 
 @router_create_report.message(Crits.crit_score)
 async def fill_report_crits(message: Message, state: FSMContext):
 
     tg_id = message.from_user.id
     # Удаляем критерий из словаря
-    user_templ_crits[tg_id].pop(0)
+    crit = user_templ_crits[tg_id].pop(0)
     print(user_templ_crits)
 
-    if user_templ_crits[tg_id]:
-        templ_crit_val = user_templ_crits[tg_id][0][0]
-        await message.answer(f'• Введите количество времени в часах сколько вы потратили за межотчетный'
-                                         f' период на критерий "{templ_crit_val}".\n'
+    await message.answer(f'• Введите количество времени в часах сколько вы потратили за межотчетный'
+                                         f' период на критерий "{crit[0]}".\n'
                                          f'Например: 2.5')
+
+    if user_templ_crits[tg_id]:
         await state.set_state(Crits.crit_score)
     elif not user_templ_crits[tg_id]:
-        if user_templ_mnoj:
-            await state.set_state(Mnoj.mnoj_score)
+        await state.set_state(Mnoj.mnoj_score)
+        print('crits done')
 
 @router_create_report.message(Mnoj.mnoj_score)
 async def fill_report_mnoj(message: Message, state: FSMContext):
@@ -94,10 +109,23 @@ async def fill_report_mnoj(message: Message, state: FSMContext):
 
     if user_templ_mnoj[tg_id]:
         await state.set_state(Mnoj.mnoj_score)
-    if not user_templ_mnoj[tg_id]:
-        print('done')
+    elif not user_templ_mnoj[tg_id]:
+        await state.set_state(ReportCreating.just_state)
+        print('Mnoj done')
 
-# TODO i need to add comment in filling report and finished this module
+@router_create_report.message(ReportCreating.just_state)
+async def report_creating(message: Message, state: FSMContext):
+    tg_id = message.from_user.id
+    await message.answer('Отчет закончен')
+
+
+
+
+
+
+
+
+# TODO i need to add comment in filling report and finished filling report with global score changes in db
 
 
 
