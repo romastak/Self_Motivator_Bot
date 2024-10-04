@@ -126,6 +126,8 @@ async def add_crit_one(message: Message, state: FSMContext):
 
 # Здесь определяется роутер, эта функция запустится если состояние машины будет = name,
 # этим и определяется последовательность
+
+
 @router_cmd_cr_templ.message(Add_crit.name)
 async def add_crit_two(message: Message, state: FSMContext):
     await state.update_data(name=message.text) # Сохранение информации
@@ -138,6 +140,7 @@ async def add_crit_two(message: Message, state: FSMContext):
         f"баллы за этот критерий будут вычитаться)"
     )
 
+
 @router_cmd_cr_templ.message(Add_crit.score)
 async def add_crit_three(message: Message, state: FSMContext):
     await state.update_data(score=float(message.text))
@@ -148,6 +151,7 @@ async def add_crit_three(message: Message, state: FSMContext):
         f"• 1 - если нужна\n"
         f"• 0 - если не нужна.\n"
     )
+
 
 @router_cmd_cr_templ.message(Add_crit.comment)
 async def add_crit_end(message: Message, state: FSMContext):
