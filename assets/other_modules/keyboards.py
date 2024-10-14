@@ -122,7 +122,7 @@ def global_score_keyboard():
 def add_templ_by_key_keyboard():
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Добавить копию шаблона", callback_data="change_global_score_val")]
+            [InlineKeyboardButton(text="Добавить копию шаблона", callback_data="add_templ_by_key")]
         ]
     )
     return keyboard
