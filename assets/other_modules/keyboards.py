@@ -1,6 +1,7 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardMarkup, ReplyKeyboardBuilder, InlineKeyboardBuilder
 
+
 def main_keyboard():
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
@@ -13,6 +14,7 @@ def main_keyboard():
         resize_keyboard=True  # Уменьшение размера кнопок
     )
     return keyboard
+
 
 def create_template_keyboard():
     keyboard = ReplyKeyboardMarkup(
@@ -28,6 +30,7 @@ def create_template_keyboard():
     )
     return keyboard
 
+
 def delete_crit_keyboard(crits_list):
     keyboard = InlineKeyboardBuilder()
     n = 0
@@ -36,6 +39,7 @@ def delete_crit_keyboard(crits_list):
         n += 1
     return keyboard.adjust(1).as_markup() # Сколько будет кнопок в ряду
 
+
 def delete_mnoj_keyboard(mnoj_list):
     keyboard = InlineKeyboardBuilder()
     n = 0
@@ -43,6 +47,7 @@ def delete_mnoj_keyboard(mnoj_list):
         keyboard.add(InlineKeyboardButton(text=el, callback_data=str("mnoj_num_" + str(n))))
         n += 1
     return keyboard.adjust(1).as_markup()
+
 
 def get_user_templ_keyboard(templ_list, for_report):
     keyboard = InlineKeyboardBuilder()
@@ -56,6 +61,7 @@ def get_user_templ_keyboard(templ_list, for_report):
             keyboard.add(InlineKeyboardButton(text=el[1], callback_data=str(f'rep_templ_id_{el[0]}')))
     return keyboard.adjust(1).as_markup()
 
+
 def get_templ_key_keyboard(templ_list):
     keyboard = InlineKeyboardBuilder()
     n = 0
@@ -63,6 +69,7 @@ def get_templ_key_keyboard(templ_list):
         keyboard.add(InlineKeyboardButton(text=el[1], callback_data=str(f'templ_key_{el[0]}')))
         n += 1
     return keyboard.adjust(1).as_markup()
+
 
 def cancel_keyboard():
     keyboard = ReplyKeyboardMarkup(
@@ -72,6 +79,7 @@ def cancel_keyboard():
         resize_keyboard=True  # Уменьшение размера кнопок
     )
     return keyboard
+
 
 # Инлайн-клавиатура для действий над выбранным шаблоном
 def templ_actions_keyboard():
@@ -85,6 +93,7 @@ def templ_actions_keyboard():
     )
     return keyboard
 
+
 # Инлайн-клавиатура для действий над глобальными очками
 def global_score_keyboard():
     keyboard = InlineKeyboardMarkup(
@@ -92,6 +101,28 @@ def global_score_keyboard():
             [InlineKeyboardButton(text="Изменить значение", callback_data="change_global_score_val")],
             [InlineKeyboardButton(text="Обнулить значение", callback_data="make_null_global_score_val")],
             [InlineKeyboardButton(text="Назад", callback_data="back_to_the_templ")]
+        ]
+    )
+    return keyboard
+
+
+# Инлайн-клавиатура для действий над глобальными очками
+def global_score_keyboard():
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Изменить значение", callback_data="change_global_score_val")],
+            [InlineKeyboardButton(text="Обнулить значение", callback_data="make_null_global_score_val")],
+            [InlineKeyboardButton(text="Назад", callback_data="back_to_the_templ")]
+        ]
+    )
+    return keyboard
+
+
+# Инлайн-клавиатура для добавления шаблона по ключу
+def add_templ_by_key_keyboard():
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Добавить копию шаблона", callback_data="change_global_score_val")]
         ]
     )
     return keyboard

@@ -9,13 +9,15 @@ from aiogram.fsm.context import FSMContext # Инструмент управле
 from aiogram.types import CallbackQuery
 from aiogram.filters.callback_data import CallbackData
 from assets.db_modules.requests import get_user_templates, get_templ_key, get_all_templ_keys, get_template_data, add_template_to_user
-from assets.other_modules.keyboards import main_keyboard
+from assets.other_modules.keyboards import main_keyboard, add_templ_by_key_keyboard
 
 
 router_cmd_cr_by_key = Router()
 
+
 class GetTemplByKey(StatesGroup):
     key = State()
+
 
 @router_cmd_cr_by_key.message(F.text == 'Создать шаблон по ключу')
 async def cmd_cr_by_key(message: Message, state: FSMContext):
@@ -23,6 +25,7 @@ async def cmd_cr_by_key(message: Message, state: FSMContext):
         await state.clear()
     await message.answer('Введите ключ:')
     await state.set_state(GetTemplByKey.key)
+
 
 @router_cmd_cr_by_key.message(GetTemplByKey.key)
 async def cmd_cr_by_key_done(message: Message, state: FSMContext):
