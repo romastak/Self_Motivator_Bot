@@ -86,8 +86,9 @@ def templ_actions_keyboard():
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="Посмотреть глобальные очки", callback_data="look_to_global_score")],
-            [InlineKeyboardButton(text="Отредактировать шаблон", callback_data="edit_templ")],
-            [InlineKeyboardButton(text="Удалить шаблон", callback_data="delete_templ")],
+            [InlineKeyboardButton(text="Посмотреть структуру", callback_data="look_at_the_struct")],
+            [InlineKeyboardButton(text="Отредактировать", callback_data="edit_templ")],
+            [InlineKeyboardButton(text="Удалить", callback_data="delete_templ")],
             [InlineKeyboardButton(text="Назад", callback_data="back_to_my_templs")]
         ]
     )
@@ -123,6 +124,16 @@ def add_templ_by_key_keyboard():
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="Добавить копию шаблона", callback_data="add_templ_by_key")]
+        ]
+    )
+    return keyboard
+
+
+#  Инлайн-клавиатура для просмотра структуры шаблона из пункта "Мои шаблоны"
+def keep_looking_structure_from_my_templs_keyboard():
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Назад", callback_data="back_to_the_templ")]
         ]
     )
     return keyboard

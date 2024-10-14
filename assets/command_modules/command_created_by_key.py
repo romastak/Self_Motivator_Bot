@@ -68,17 +68,17 @@ async def cmd_cr_by_key_done(message: Message, state: FSMContext):
         #  Сбор множителей
         if templ_mnoj_val:
             for mnoj in templ_mnoj_val:
-                mnoj_name = crit[0]
-                mnoj_score = crit[1]
-                mnoj_comment = crit[2]
+                mnoj_name = mnoj[0]
+                mnoj_score = mnoj[1]
+                mnoj_comment = mnoj[2]
 
-                if crit_comment == 1:
+                if mnoj_comment == 1:
                     mnoj_comment = 'Да'
                 else:
                     mnoj_comment = 'Нет'
 
-                output_mnoj.append(f'• "{crit_name}"\n'
-                                    f'Значение: "x{crit_score}"\n'
+                output_mnoj.append(f'• "{mnoj_name}"\n'
+                                    f'Значение: "x{mnoj_score}"\n'
                                     f'Возможность комментирования: "{mnoj_comment}"')
 
             result_mnojs = "\n".join(output_mnoj)

@@ -9,9 +9,9 @@ from aiogram.fsm.context import FSMContext # Инструмент управле
 from aiogram.types import CallbackQuery
 from aiogram.filters.callback_data import CallbackData
 from assets.other_modules.keyboards import main_keyboard, create_template_keyboard, cancel_keyboard, delete_crit_keyboard, delete_mnoj_keyboard, get_user_templ_keyboard
-from assets.other_modules.keyboards import templ_actions_keyboard, global_score_keyboard
+from assets.other_modules.keyboards import templ_actions_keyboard, global_score_keyboard, keep_looking_structure_from_my_templs_keyboard
 from assets.db_modules.requests import get_user_templates, delete_user_template, get_template_global_score, make_null_template_global_score, change_template_global_score
-from assets.db_modules.requests import save_user_template
+from assets.db_modules.requests import save_user_template, get_template_data
 
 router_cmd_get_user_templ = Router()
 
@@ -73,7 +73,7 @@ async def choose_templ(callback: CallbackQuery, state: FSMContext):
         )
 
 
-# Обработчик нажатия кнопки "Посмотреть глобальные очки"
+#  Обработчик нажатия кнопки "Посмотреть глобальные очки"
 @router_cmd_get_user_templ.callback_query(F.data == "look_to_global_score")
 async def look_to_global_score(callback: CallbackQuery, state: FSMContext):
     tg_id = callback.from_user.id
@@ -83,7 +83,72 @@ async def look_to_global_score(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(f'Глобальные очки шаблона "{chosen_templ[1]}" = {global_score}', reply_markup=global_score_keyboard())
 
 
-# Возврат назад в выбранный шаблон из меню глобальных очков
+#  Смотрим структуру шаблона
+@router_cmd_get_user_templ.callback_query(F.data == "look_at_the_struct")
+async def look_at_the_struct_func(callback: CallbackQuery, state: FSMContext):
+    state_data = await state.get_data()
+    templ_data = state_data.get('chosen_templ')
+    templ_id = templ_data[0]
+    output_crits = []
+    output_mnoj = []
+
+    print(f'DEBUG: get data from state: {templ_id}')
+    # Извлекаем данные шаблона по ID
+    templ_name_val, templ_crits_val, templ_mnoj_val = await get_template_data(key=None, templ_id=templ_id)
+    await state.update_data(templ_data=(templ_name_val, templ_crits_val, templ_mnoj_val))
+    print(f'DEBUG: имя, критерии, множители: {templ_name_val}, {templ_crits_val}, {templ_mnoj_val}')
+
+    #  Сбор критериев
+    for crit in templ_crits_val:
+        crit_name = crit[0]
+        crit_score = crit[1]
+        crit_comment = crit[2]
+
+        if crit_comment == 1:
+            crit_comment = 'Да'
+        else:
+            crit_comment = 'Нет'
+
+        output_crits.append(f'• "{crit_name}"\n'
+                            f'Количество очков за час: "{crit_score}"\n'
+                            f'Возможность комментирования: "{crit_comment}"')
+
+    result_crits = "\n".join(output_crits)
+
+    #  Сбор множителей
+    if templ_mnoj_val:
+        for mnoj in templ_mnoj_val:
+            mnoj_name = mnoj[0]
+            mnoj_score = mnoj[1]
+            mnoj_comment = mnoj[2]
+
+            if mnoj_comment == 1:
+                mnoj_comment = 'Да'
+            else:
+                mnoj_comment = 'Нет'
+
+            output_mnoj.append(f'• "{mnoj_name}"\n'
+                               f'Значение: "x{mnoj_score}"\n'
+                               f'Возможность комментирования: "{mnoj_comment}"')
+
+        result_mnojs = "\n".join(output_mnoj)
+
+    if templ_mnoj_val:
+        await callback.message.edit_text(f'Структура шаблона "{templ_name_val}":\n'
+                             f'................................................\n'
+                             f'Критерии:\n'
+                             f'{result_crits}\n'
+                             f'................................................\n'
+                             f'Множители:\n'
+                             f'{result_mnojs}', reply_markup=keep_looking_structure_from_my_templs_keyboard())
+    else:
+        await callback.message.edit_text(f'Структура шаблона:\n'
+                             f'................................................\n'
+                             f'Критерии:\n'
+                             f'{result_crits}', reply_markup=keep_looking_structure_from_my_templs_keyboard())
+
+
+#  Возврат назад в выбранный шаблон из меню глобальных очков
 @router_cmd_get_user_templ.callback_query(F.data == "back_to_the_templ")
 async def back_to_the_templ(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
