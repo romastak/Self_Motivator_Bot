@@ -22,8 +22,9 @@ class GetTemplByKey(StatesGroup):
 
 @router_cmd_cr_by_key.message(F.text == 'Создать шаблон по ключу')
 async def cmd_cr_by_key(message: Message, state: FSMContext):
-    if state:
-        await state.clear()
+
+    await state.clear()
+
     await message.answer('Введите ключ:')
     await state.set_state(GetTemplByKey.key)
 
@@ -87,14 +88,17 @@ async def cmd_cr_by_key_done(message: Message, state: FSMContext):
             await message.answer(f'Структура шаблона:\n'
                                  f'................................................\n'
                                  f'Критерии:\n'
+                                 f'\n'
                                  f'{result_crits}\n'
                                  f'................................................\n'
                                  f'Множители:\n'
+                                 f'\n'
                                  f'{result_mnojs}', reply_markup=add_templ_by_key_keyboard())
         else:
             await message.answer(f'Структура шаблона:\n'
                                  f'................................................\n'
                                  f'Критерии:\n'
+                                 f'\n'
                                  f'{result_crits}', reply_markup=add_templ_by_key_keyboard())
 
     else:

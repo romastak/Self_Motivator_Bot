@@ -49,7 +49,9 @@ class ReportCreating(StatesGroup):
 
 
 @router_create_report.message(F.text == 'Создать отчёт')
-async def create_report(message: Message):
+async def create_report(message: Message, state: FSMContext):
+
+    await state.clear()
 
     tg_id = message.from_user.id
 

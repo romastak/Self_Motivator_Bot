@@ -15,7 +15,9 @@ from assets.db_modules.requests import get_user_templates, get_templ_key
 router_cmd_get_key = Router()
 
 @router_cmd_get_key.message(F.text == "Получить ключ шаблона")
-async def get_user_templ(message: Message):
+async def get_user_templ(message: Message, state: FSMContext):
+
+    await state.clear()
 
     telegram_id = message.from_user.id
     user_templ_list = await get_user_templates(telegram_id)

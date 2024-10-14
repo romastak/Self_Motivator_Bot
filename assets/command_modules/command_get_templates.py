@@ -24,7 +24,10 @@ class Choose_templ(StatesGroup):
     templ_name = State()
 
 @router_cmd_get_user_templ.message(F.text == "Мои шаблоны")
-async def get_user_templ(message: Message):
+async def get_user_templ(message: Message, state: FSMContext):
+
+    await state.clear()
+
     telegram_id = message.from_user.id
     user_templ_list = await get_user_templates(telegram_id)
 
@@ -142,7 +145,7 @@ async def look_at_the_struct_func(callback: CallbackQuery, state: FSMContext):
                              f'Множители:\n'
                              f'{result_mnojs}', reply_markup=keep_looking_structure_from_my_templs_keyboard())
     else:
-        await callback.message.edit_text(f'Структура шаблона:\n'
+        await callback.message.edit_text(f'Структура шаблона "{templ_name_val}":\n'
                              f'................................................\n'
                              f'Критерии:\n'
                              f'{result_crits}', reply_markup=keep_looking_structure_from_my_templs_keyboard())

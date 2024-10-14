@@ -53,6 +53,8 @@ class CritDelete(StatesGroup):
 @router_cmd_cr_templ.message(F.text == "Создать шаблон")
 async def cmd_cr_templ(event: types.Message | types.CallbackQuery, state: FSMContext):
 
+    await state.clear()
+
     # Очистка переменных
     telegram_id = event.from_user.id
     if telegram_id in user_templates:
@@ -236,7 +238,93 @@ async def add_usl_one(message: Message):
     await message.answer("Функция находится в разработке")
 
 
-@router_cmd_cr_templ.message(F.text == "Протестировать шаблон")
+@router_cmd_cr_templ.message(F.text == "Посмотреть структуру шаблона")
+async def cmd_test_templ(message: Message):
+
+    ig_id = message.from_user.id
+
+    current_user_templ = user_templates.get(ig_id)
+    templ_crits_val_dict = current_user_templ.get('crit')
+    templ_mnoj_val_dict = current_user_templ.get('mnoj')
+
+    templ_crits_val = []
+    templ_mnoj_val = []
+
+    output_crits = []
+    output_mnoj = []
+
+    for one_crit in templ_crits_val_dict:
+        print(one_crit)
+        crit_name = one_crit.get('name')
+        crit_score = one_crit.get('score')
+        crit_comment = one_crit.get('comment')
+        crit_tuple = (crit_name, crit_score, crit_comment)
+        templ_crits_val.append(crit_tuple)
+
+    for one_mnoj in templ_mnoj_val_dict:
+        mnoj_name = one_mnoj.get('name')
+        mnoj_score = one_mnoj.get('score')
+        mnoj_comment = one_mnoj.get('comment')
+        mnoj_tuple = (mnoj_name, mnoj_score, mnoj_comment)
+        templ_mnoj_val.append(mnoj_tuple)
+
+    print(f'DEBUG: crits: {templ_crits_val}\n'
+          f'DEBUG: mnoj: {templ_mnoj_val}')
+
+    #  Сбор критериев
+    for crit in templ_crits_val:
+        crit_name = crit[0]
+        crit_score = crit[1]
+        crit_comment = crit[2]
+
+        if crit_comment == 1:
+            crit_comment = 'Да'
+        else:
+            crit_comment = 'Нет'
+
+        output_crits.append(f'• "{crit_name}"\n'
+                            f'Количество очков за час: "{crit_score}"\n'
+                            f'Возможность комментирования: "{crit_comment}"')
+
+    result_crits = "\n".join(output_crits)
+
+    #  Сбор множителей
+    if templ_mnoj_val:
+        for mnoj in templ_mnoj_val:
+            mnoj_name = mnoj[0]
+            mnoj_score = mnoj[1]
+            mnoj_comment = mnoj[2]
+
+            if mnoj_comment == 1:
+                mnoj_comment = 'Да'
+            else:
+                mnoj_comment = 'Нет'
+
+            output_mnoj.append(f'• "{mnoj_name}"\n'
+                               f'Значение: "x{mnoj_score}"\n'
+                               f'Возможность комментирования: "{mnoj_comment}"')
+
+        result_mnojs = "\n".join(output_mnoj)
+
+    if templ_mnoj_val:
+        await message.answer(f'Структура шаблона:\n'
+                                         f'................................................\n'
+                                         f'Критерии:\n'
+                                         f'\n'
+                                         f'{result_crits}\n'
+                                         f'................................................\n'
+                                         f'Множители:\n'
+                                         f'\n'
+                                         f'{result_mnojs}')
+    else:
+        await message.answer(f'Структура шаблона:\n'
+                                         f'................................................\n'
+                                         f'Критерии:\n'
+                                         f'\n'
+                                         f'{result_crits}')
+
+
+@router_cmd_cr_templ.message(F.text == "Протестировать шаблон случайными значениями")
 async def cmd_test_templ(message: Message):
 
     username = message.from_user.first_name

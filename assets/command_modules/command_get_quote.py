@@ -26,7 +26,10 @@ async def get_random_quote():
             return data.get("quoteText"), data.get("quoteAuthor")
 
 @router_get_quote.message(F.text == "Мотивирующая цитата")
-async def add_crit_one(message: Message):
+async def add_crit_one(message: Message, state: FSMContext):
+
+    await state.clear()
+
     quote = await get_random_quote()
     clear_quote = quote[0]
     clear_author = quote[1]
