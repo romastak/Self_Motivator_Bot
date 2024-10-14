@@ -9,8 +9,9 @@ from aiogram.fsm.context import FSMContext  # Инструмент управл�
 from aiogram.types import CallbackQuery
 from aiogram.filters.callback_data import CallbackData
 from assets.other_modules.keyboards import main_keyboard, create_template_keyboard, cancel_keyboard, get_user_templ_keyboard
-from assets.db_modules.requests import save_user_template, edit_user_template, get_template_data, get_user_templates
+from assets.db_modules.requests import save_user_template, edit_user_template, get_template_data, get_user_templates, get_template_global_score, change_template_global_score
 from assets.command_modules.command_get_templates import Choose_templ
+
 
 router_create_report = Router()
 
@@ -27,6 +28,9 @@ user_templ_mnoj_score = {}
 user_templ_crits_comm = {}
 user_templ_mnoj_comm = {}
 
+user_templ_global_score_dict = {}
+
+# Сюда складываются в словарь с ключом data значения ответов пользователя по порядку (ответы на вопросы про критерии, множители)
 user_report = {}
 
 
@@ -78,10 +82,10 @@ async def start_report(callback: CallbackQuery, state: FSMContext):
                 break
 
         templ_name_val, templ_crit_val, templ_mnoj_val = await get_template_data(None, chosen_templ[0])
+        gl_score = await get_template_global_score(chosen_templ[0])
+        user_templ_global_score_dict[tg_id] = (chosen_templ[0], gl_score)
+        print(user_templ_global_score_dict[tg_id])
 
-        print(templ_name_val)
-        print(templ_crit_val)
-        print(templ_mnoj_val)
         await state.set_state(Crits.crit_score)
 
         user_templ_name[tg_id] = templ_name_val
@@ -102,7 +106,6 @@ async def start_report(callback: CallbackQuery, state: FSMContext):
         elif templ_crit_val[0][2] == 0:
             # Удаляем критерий из словаря
             user_templ_crits[tg_id].pop(0)
-            print(user_templ_crits)
             if user_templ_crits[tg_id]:
                 await state.set_state(Crits.crit_score)
             elif not user_templ_crits[tg_id]:
@@ -110,7 +113,6 @@ async def start_report(callback: CallbackQuery, state: FSMContext):
                     await state.set_state(Mnoj.mnoj_score)
                 elif not user_templ_mnoj[tg_id]:
                     await state.set_state(ReportCreating.just_state)
-                print('crits done')
 
         user_report[tg_id] = {'data': []}
 
@@ -121,13 +123,9 @@ async def fill_report_crits(message: Message, state: FSMContext):
     tg_id = message.from_user.id
     #  Удаляем критерий из словаря
     crit = user_templ_crits[tg_id][0]
-    print(user_templ_crits)
 
     #  Запись данных в словарь для формирования отчета в конце
     user_report[tg_id]['data'].append(message.text)
-    print(user_report[tg_id])
-    print(user_templ_crits_full[tg_id])
-    print(user_templ_mnoj_full[tg_id])
 
     await message.answer(f'• Введите количество времени в часах сколько вы потратили за межотчетный'
                                          f' период на критерий "{crit[0]}".\n'
@@ -144,7 +142,6 @@ async def fill_report_crits(message: Message, state: FSMContext):
                 await state.set_state(Mnoj.mnoj_score)
             elif not user_templ_mnoj[tg_id]:
                 await state.set_state(ReportCreating.just_state)
-            print('crits done')
 
 
 @router_create_report.message(Crits.crit_comm)
@@ -152,13 +149,9 @@ async def fill_report_crit_comms(message: Message, state: FSMContext):
 
     tg_id = message.from_user.id
     crit = user_templ_crits[tg_id].pop(0)
-    print(user_templ_crits)
 
     #  Запись данных в словарь для формирования отчета в конце
     user_report[tg_id]['data'].append(message.text)
-    print(user_report[tg_id])
-    print(user_templ_crits_full[tg_id])
-    print(user_templ_mnoj_full[tg_id])
 
     await message.answer(f'• Введите ваш комментарий к критерию "{crit[0]}".')
 
@@ -166,7 +159,6 @@ async def fill_report_crit_comms(message: Message, state: FSMContext):
         await state.set_state(Crits.crit_score)
     elif not user_templ_crits[tg_id]:
         await state.set_state(Mnoj.mnoj_score)
-        print('crits done')
 
 
 @router_create_report.message(Mnoj.mnoj_score)
@@ -175,13 +167,9 @@ async def fill_report_mnoj(message: Message, state: FSMContext):
     tg_id = message.from_user.id
     # Удаляем множ из словаря
     mnoj = user_templ_mnoj[tg_id][0]
-    print(user_templ_mnoj)
 
     #  Запись данных в словарь для формирования отчета в конце
     user_report[tg_id]['data'].append(message.text)
-    print(user_report[tg_id])
-    print(user_templ_crits_full[tg_id])
-    print(user_templ_mnoj_full[tg_id])
 
     await message.answer(f'Совершали ли вы действия, предусмотренные множителем "{mnoj[0]}"?\n'
                          f'• Отправьте "1", если да.\n'
@@ -192,12 +180,10 @@ async def fill_report_mnoj(message: Message, state: FSMContext):
     elif mnoj[2] == 0:
         # Удаляем множ из словаря
         user_templ_mnoj[tg_id].pop(0)
-        print(user_templ_mnoj)
         if user_templ_mnoj[tg_id]:
             await state.set_state(Mnoj.mnoj_score)
         elif not user_templ_mnoj[tg_id]:
             await state.set_state(ReportCreating.just_state)
-            print('Mnoj done')
 
 
 @router_create_report.message(Mnoj.mnoj_comm)
@@ -205,13 +191,9 @@ async def fill_report_mnoj_comms(message: Message, state: FSMContext):
 
     tg_id = message.from_user.id
     mnoj = user_templ_mnoj[tg_id].pop(0)
-    print(user_templ_mnoj)
 
     #  Запись данных в словарь для формирования отчета в конце
     user_report[tg_id]['data'].append(message.text)
-    print(user_report[tg_id])
-    print(user_templ_crits_full[tg_id])
-    print(user_templ_mnoj_full[tg_id])
 
     await message.answer(f'• Введите ваш комментарий к множителю "{mnoj[0]}".')
 
@@ -219,25 +201,23 @@ async def fill_report_mnoj_comms(message: Message, state: FSMContext):
         await state.set_state(Mnoj.mnoj_score)
     elif not user_templ_mnoj[tg_id]:
         await state.set_state(ReportCreating.just_state)
-        print('Mnoj done')
 
 
 @router_create_report.message(ReportCreating.just_state)
 async def report_creating(message: Message, state: FSMContext):
 
     tg_id = message.from_user.id
-    need_to_output_mnoj_string = False
 
-    await message.answer('Отчет закончен. Только я вам его не отдам. У вас дакУментов нету.')
+    #  Запись данных в словарь для формирования отчета в конце
+    user_report[tg_id]['data'].append(message.text)
+
+    need_to_output_mnoj_string = False
+    print(f'DEBUG: Словарь user_report с ответами на вопросы отчета по порядку: {user_report[tg_id]}')
 
     scores_sum_for_today = 0
     user_crits = user_templ_crits_full[tg_id]
     user_mnoj = user_templ_mnoj_full[tg_id]
     user_report_data = user_report[tg_id]['data']
-
-    print(user_crits)
-    print(user_mnoj)
-    print(user_report_data)
 
     count_crits = len(user_crits)
     count_mnoj = len(user_mnoj)
@@ -249,130 +229,204 @@ async def report_creating(message: Message, state: FSMContext):
     # Сбор критериев в шаблон
     if count_crits != 0:
         for crit_num in range(count_crits):
+
             crit = user_crits[crit_num]
 
             crit_name = str(crit[0])
             crit_score = float(crit[1])
             crit_comment = int(crit[2])
 
+            scores_sum_for_today += (crit_score * float(user_report_data[0]))
+
             if crit_comment == 1:
                 output_crits.append(
                     f'• {crit_name}:\n'
-                    f'{int(user_report_data[crit_num])} hours = {crit_score * int(user_report_data[crit_num])} scores\n'
-                    f'Комментарий: "{user_report_data[crit_num + 1]}"'
-                    f'\n'
+                    f'{float(user_report_data[0])} hours = {crit_score * float(user_report_data[0])} scores\n'
+                    f'Комментарий: "{user_report_data[1]}"'
                 )
+                user_report_data.pop(0)
+                user_report_data.pop(0)
             else:
                 output_crits.append(
                     f"• {crit_name}:\n"
-                    f"{int(user_report_data[crit_num])} hours = {crit_score * int(user_report_data[crit_num])} scores"
-                    f"\n"
+                    f"{float(user_report_data[0])} hours = {crit_score * float(user_report_data[0])} scores"
                 )
+                user_report_data.pop(0)
 
-            scores_sum_for_today += (crit_score * int(user_report_data[crit_num]))
-
-        # user_report_data.pop(0)
+            print(f'DEBUG: Словарь user_report с ответами на вопросы отчета по порядку: {user_report[tg_id]}')
 
         # Соединяем все строки с критериями в одну с помощью join
         result_crits = "\n".join(output_crits)
 
     # Сбор множителей в шаблон
-    applied_mnoj = 1
+    scores_sum_for_today_with_mnoj = scores_sum_for_today
     if count_mnoj != 0:
+
         mnoj_score_sum = float(0)
 
         for mnoj_num in range(count_mnoj):
             mnoj = user_mnoj[mnoj_num]
 
             mnoj_name = str(mnoj[0])
-            crit_score = float(mnoj[1])
+            mnoj_score = float(mnoj[1])
             mnoj_comment = int(mnoj[2])
 
-            if mnoj_comment == 1:
+            if user_report_data[0] == "1":
                 yes_or_no = 'Да'
-                get_or_not = 'Получен'
-            elif mnoj_comment == 0:
-                yes_or_no = 'Нет'
                 get_or_not = 'Не получен'
-
-                output_mnoj.append(
-                    f'• {mnoj_name}: {yes_or_no}\n'
-                    f'Множитель x{crit_score}: {get_or_not}\n'
-                    f'Комментарий: "{user_report_data[mnoj_num] + count_crits}"'
-                    f'\n'
-                )
+                if mnoj_comment:
+                    output_mnoj.append(
+                        f'• {mnoj_name}: {yes_or_no}\n'
+                        f'Множитель x{mnoj_score}: {get_or_not}\n'
+                        f'Комментарий: "{user_report_data[1]}"'
+                    )
+                    user_report_data.pop(0)
+                    user_report_data.pop(0)
+                else:
+                    output_mnoj.append(
+                        f'• {mnoj_name}: {yes_or_no}\n'
+                        f'Множитель x{mnoj_score}: {get_or_not}'
+                    )
+                    user_report_data.pop(0)
             else:
-                output_mnoj.append(
-                    f"• {mnoj_name}: {yes_or_no}\n"
-                    f"Множитель x{crit_score}: {get_or_not}"
-                    f"\n"
-                )
+                yes_or_no = 'Нет'
+                get_or_not = 'Получен'
+                if mnoj_comment:
+                    output_mnoj.append(
+                        f'• {mnoj_name}: {yes_or_no}\n'
+                        f'Множитель x{mnoj_score}: {get_or_not}\n'
+                        f'Комментарий: "{user_report_data[1]}"'
+                    )
+                    user_report_data.pop(0)
+                    user_report_data.pop(0)
+                else:
+                    output_mnoj.append(
+                        f'• {mnoj_name}: {yes_or_no}\n'
+                        f'Множитель x{mnoj_score}: {get_or_not}'
+                    )
+                    user_report_data.pop(0)
 
             # Применяем множитель только если ответ "Нет"
-            if mnoj_comment == "0":
-                applied_mnoj *= crit_score  # Умножаем текущий множитель на итоговый
+            if yes_or_no == 'Нет':
+                scores_sum_for_today_with_mnoj *= float(mnoj_score) # Применяем множитель к сумме очков
                 need_to_output_mnoj_string = True
 
-    # Если есть хотя бы один множитель
+        print(f'DEBUG: Словарь user_report с ответами на вопросы отчета по порядку: {user_report[tg_id]}')
+
+    # Если есть хотя бы один множитель, соединям их в одну строку
     if count_mnoj != 0:
         result_mnojs = "\n".join(output_mnoj)
     else:
         result_mnojs = None
 
-
-    def mnoj_string_in_report(need_to_output_mnoj_string, final_score):
+    def mnoj_string_in_report(need_to_output_mnoj_string, scores_sum_for_today_with_mnoj):
         if need_to_output_mnoj_string:
-            return f"• Применение множителя. Итоговая сумма баллов: {final_score}\n"
+            return f"• Применение множителя. Итоговая сумма баллов: {float(scores_sum_for_today_with_mnoj)}\n"
         else:
             return ""
 
     tg_username = message.from_user.first_name
+    templ_id = user_templ_global_score_dict[tg_id][0]
+    templ_global_score = user_templ_global_score_dict[tg_id][1]
 
     # Выводим результат с учетом примененных множителей
-    if result_mnojs != None:
-        final_score = scores_sum_for_today * applied_mnoj
-        await message.answer(
-            f"Отчет: {tg_username}\n"
-            f"................................................\n"
-            f"Критерии:\n"
-            f"\n"
-            f"{result_crits}\n"
-            f"................................................\n"
-            f"Множители:\n"
-            f"\n"
-            f"{result_mnojs}\n"
-            f"................................................\n"
-            f"Итог:\n"
-            f"\n"
-            f"• Сумма баллов за критерии за межотчетный период: {scores_sum_for_today}\n"
-            f"{mnoj_string_in_report(need_to_output_mnoj_string, final_score)}"
-            f"• Глобальная сумма баллов: {0 + final_score}"
-        )
+    if count_mnoj != 0:
+
+        mnoj_string_output = mnoj_string_in_report(need_to_output_mnoj_string, scores_sum_for_today_with_mnoj)
+
+        templ_global_score_with_changes = float(templ_global_score) + float(scores_sum_for_today_with_mnoj)
+        result_save_in_db = await change_template_global_score(templ_id, float(templ_global_score_with_changes))
+
+        if result_save_in_db:
+            await message.answer(
+                f"Отчет: {tg_username}\n"
+                f"................................................\n"
+                f"Критерии:\n"
+                f"\n"
+                f"{result_crits}\n"
+                f"................................................\n"
+                f"Множители:\n"
+                f"\n"
+                f"{result_mnojs}\n"
+                f"................................................\n"
+                f"Итог:\n"
+                f"\n"
+                f"• Сумма баллов за критерии за межотчетный период: {scores_sum_for_today}\n"
+                f"{mnoj_string_output}"
+                f"• Глобальная сумма баллов: {templ_global_score_with_changes}", reply_markup=main_keyboard()
+            )
+            await message.answer('Перешлите отчет в группу вашей команды мотивации')
+        else:
+            await message.answer('Не удалось обновить глобальные очки в шаблоне')
 
     else:
-        await message.answer(
-            f"Отчет: {tg_username}\n"
-            f"................................................\n"
-            f"Критерии:\n"
-            f"\n"
-            f"{result_crits}\n"
-            f"................................................\n"
-            f"Итог:\n"
-            f"\n"
-            f"• Итоговая сумма баллов за межотчетный период: {scores_sum_for_today}\n"
-            f"• Глобальная сумма баллов: {0 + scores_sum_for_today}"
-        )
 
-    state.clear()
+        templ_global_score_with_changes = float(templ_global_score) + float(scores_sum_for_today)
+        result_save_in_db = await change_template_global_score(templ_id, float(templ_global_score_with_changes))
 
+        if result_save_in_db:
+            await message.answer(
+                f"Отчет: {tg_username}\n"
+                f"................................................\n"
+                f"Критерии:\n"
+                f"\n"
+                f"{result_crits}\n"
+                f"................................................\n"
+                f"Итог:\n"
+                f"\n"
+                f"• Итоговая сумма баллов за межотчетный период: {scores_sum_for_today}\n"
+                f"• Глобальная сумма баллов: {templ_global_score_with_changes}", reply_markup=main_keyboard()
+            )
+            await message.answer('Перешлите отчет в группу вашей команды мотивации')
+        else:
+            await message.answer('Не удалось обновить глобальные очки в шаблоне')
 
-
-
-
-
-
-
-# TODO check comment adding, fix mnoj adding, create logic with update global score in db
+    # Очищение всех состояний
+    await state.clear()
+    try:
+        user_templ_crits.pop(tg_id)
+    except KeyError:
+        pass
+    try:
+        user_templ_mnoj.pop(tg_id)
+    except KeyError:
+        pass
+    try:
+        user_templ_name.pop(tg_id)
+    except KeyError:
+        pass
+    try:
+        user_templ_crits_full.pop(tg_id)
+    except KeyError:
+        pass
+    try:
+        user_templ_mnoj_full.pop(tg_id)
+    except KeyError:
+        pass
+    try:
+        user_templ_crits_score.pop(tg_id)
+    except KeyError:
+        pass
+    try:
+        user_templ_mnoj_score.pop(tg_id)
+    except KeyError:
+        pass
+    try:
+        user_templ_crits_comm.pop(tg_id)
+    except KeyError:
+        pass
+    try:
+        user_templ_mnoj_comm.pop(tg_id)
+    except KeyError:
+        pass
+    try:
+        user_templ_global_score_dict.pop(tg_id)
+    except KeyError:
+        pass
+    try:
+        user_report.pop(tg_id)
+    except KeyError:
+        pass
 
 
 

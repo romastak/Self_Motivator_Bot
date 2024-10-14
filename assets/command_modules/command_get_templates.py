@@ -44,6 +44,7 @@ async def back_to_my_templs(callback: CallbackQuery):
         await callback.message.edit_text(text='Ваши шаблоны:', reply_markup=get_user_templ_keyboard(user_templ_list, False))
     else:
         await callback.message.edit_text(text='Возникла ошибка при загрузке шаблонов.')
+        await state.clear()
 
 
 # Обработчик нажатий на кнопки с шаблонами в "Мои шаблоны"
@@ -103,7 +104,8 @@ async def null_to_global_score(callback: CallbackQuery, state: FSMContext):
     chosen_templ = data.get('chosen_templ')
     print(chosen_templ[0])
     await make_null_template_global_score(chosen_templ[0])
-    await callback.message.edit_text(f'Значение глобальных очков шаблона "{chosen_templ[1]}" успешно обнулено.')
+    await callback.message.edit_text(f'Значение глобальных очков шаблона "{chosen_templ[1]}" успешно обнулено.', reply_markup=main_keyboard())
+    await state.clear()
 
 
 # Изменяем глобальные очки
@@ -121,6 +123,7 @@ async def look_to_global_score(message: Message, state: FSMContext):
     success = await change_template_global_score(chosen_templ[0], float(score_val))
     if success:
         await message.answer(f'Значение глобальных очков шаблона "{chosen_templ[1]}" успешно изменено на "{score_val}".', reply_markup=main_keyboard())
+        await state.clear()
 
 
 # Обработчик нажатия кнопки "Удалить шаблон"
@@ -137,6 +140,7 @@ async def delete_template(callback: CallbackQuery, state: FSMContext):
         if success:
             await callback.message.edit_text(f'Шаблон "{chosen_templ[1]}" успешно удален.')
         else:
-            await callback.message.answer('Не удалось удалить шаблон. Возможно, он уже удален.')
+            await callback.message.edit_text('Не удалось удалить шаблон. Возможно, он уже удален.')
     else:
-        await callback.message.answer('Не удалось найти выбранный шаблон.')
+        await callback.message.edit_text('Не удалось найти выбранный шаблон.')
+    await state.clear()
