@@ -140,14 +140,17 @@ async def look_at_the_struct_func(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(f'Структура шаблона "{templ_name_val}":\n'
                              f'................................................\n'
                              f'Критерии:\n'
+                             f'\n'
                              f'{result_crits}\n'
                              f'................................................\n'
                              f'Множители:\n'
+                             f'\n'
                              f'{result_mnojs}', reply_markup=keep_looking_structure_from_my_templs_keyboard())
     else:
         await callback.message.edit_text(f'Структура шаблона "{templ_name_val}":\n'
                              f'................................................\n'
                              f'Критерии:\n'
+                             f'\n'
                              f'{result_crits}', reply_markup=keep_looking_structure_from_my_templs_keyboard())
 
 

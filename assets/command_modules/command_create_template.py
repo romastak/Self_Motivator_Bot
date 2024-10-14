@@ -53,8 +53,6 @@ class CritDelete(StatesGroup):
 @router_cmd_cr_templ.message(F.text == "Создать шаблон")
 async def cmd_cr_templ(event: types.Message | types.CallbackQuery, state: FSMContext):
 
-    await state.clear()
-
     # Очистка переменных
     telegram_id = event.from_user.id
     if telegram_id in user_templates:
@@ -65,6 +63,8 @@ async def cmd_cr_templ(event: types.Message | types.CallbackQuery, state: FSMCon
             "Вы вошли в конструктор шаблонов.",
             reply_markup=create_template_keyboard()
         )
+
+        await state.clear()
 
         is_editing[telegram_id] = False
 
@@ -385,13 +385,11 @@ async def cmd_test_templ(message: Message):
                             f"• {crit_name}:\n"
                             f"{random_hours} hours = {crit_score * random_hours} scores\n"
                             f"Комментарий: Сегодня я потратил на это {random_hours} hours."
-                            f"\n"
                         )
                     else:
                         output_crits.append(
                             f"• {crit_name}:\n"
                             f"{random_hours} hours = {crit_score * random_hours} scores"
-                            f"\n"
                         )
 
                     scores_sum_for_today += (crit_score * random_hours)
@@ -417,13 +415,11 @@ async def cmd_test_templ(message: Message):
                             f"• {mnoj_name}: {yes_or_no}\n"
                             f"Множитель x{mnoj_score}: {get_or_not}\n"
                             f"Комментарий: Сегодня я {do_or_not} этим."
-                            f"\n"
                         )
                     else:
                         output_mnoj.append(
                             f"• {mnoj_name}: {yes_or_no}\n"
                             f"Множитель x{mnoj_score}: {get_or_not}"
-                            f"\n"
                         )
 
                     # Применяем множитель только если ответ "Нет"
