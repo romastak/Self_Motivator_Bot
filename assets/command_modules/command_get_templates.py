@@ -131,7 +131,7 @@ async def look_at_the_struct_func(callback: CallbackQuery, state: FSMContext):
                 mnoj_comment = 'Нет'
 
             output_mnoj.append(f'• "{mnoj_name}"\n'
-                               f'Значение: "x{mnoj_score}"\n'
+                               f'При ответе "Нет" заработанные очки умножатся на "x{mnoj_score}"\n'
                                f'Возможность комментирования: "{mnoj_comment}"')
 
         result_mnojs = "\n".join(output_mnoj)
@@ -175,7 +175,7 @@ async def null_to_global_score(callback: CallbackQuery, state: FSMContext):
     chosen_templ = data.get('chosen_templ')
     print(chosen_templ[0])
     await make_null_template_global_score(chosen_templ[0])
-    await callback.message.edit_text(f'Значение глобальных очков шаблона "{chosen_templ[1]}" успешно обнулено.', reply_markup=main_keyboard())
+    await callback.message.edit_text(f'Значение глобальных очков шаблона "{chosen_templ[1]}" успешно обнулено.')
     await state.clear()
 
 
