@@ -160,7 +160,10 @@ async def fill_report_crit_comms(message: Message, state: FSMContext):
     if user_templ_crits[tg_id]:
         await state.set_state(Crits.crit_score)
     elif not user_templ_crits[tg_id]:
-        await state.set_state(Mnoj.mnoj_score)
+        if user_templ_mnoj[tg_id]:
+            await state.set_state(Mnoj.mnoj_score)
+        else:
+            await state.set_state(ReportCreating.just_state)
 
 
 @router_create_report.message(Mnoj.mnoj_score)
