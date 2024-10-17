@@ -157,12 +157,12 @@ async def fill_report_crit_comms(message: Message, state: FSMContext):
 
     await message.answer(f'• Введите ваш комментарий к критерию "{crit[0]}".')
 
-    if user_templ_crits[tg_id]:
+    if user_templ_crits.get(tg_id):
         await state.set_state(Crits.crit_score)
-    elif not user_templ_crits[tg_id]:
-        if user_templ_mnoj[tg_id]:
+    elif not user_templ_crits.get(tg_id):
+        if user_templ_mnoj.get(tg_id):
             await state.set_state(Mnoj.mnoj_score)
-        else:
+        elif not user_templ_mnoj.get(tg_id):
             await state.set_state(ReportCreating.just_state)
 
 
@@ -221,11 +221,17 @@ async def report_creating(message: Message, state: FSMContext):
 
     scores_sum_for_today = 0
     user_crits = user_templ_crits_full[tg_id]
-    user_mnoj = user_templ_mnoj_full[tg_id]
-    user_report_data = user_report[tg_id]['data']
 
+    count_mnoj = 0
+
+    if user_templ_mnoj_full.get(tg_id):
+        user_mnoj = user_templ_mnoj_full[tg_id]
+        count_mnoj = len(user_mnoj)
+    else:
+        user_mnoj = 0
+
+    user_report_data = user_report[tg_id]['data']
     count_crits = len(user_crits)
-    count_mnoj = len(user_mnoj)
 
     output_crits = []
     output_mnoj = []
