@@ -35,6 +35,7 @@ class Add_crit(StatesGroup): # Наследуемый класс состоян�
 class Add_mnoj(StatesGroup):
     name = State()
     score = State()
+    what_answer = State()
     comment = State()
 
 # class Add_usl(StatesGroup):
@@ -76,7 +77,6 @@ async def cmd_cr_templ(event: types.Message | types.CallbackQuery, state: FSMCon
         id_edit_templ[telegram_id] = chosen_templ
         print(chosen_templ)
         templ_name_val, templ_crit_val, templ_mnoj_val = await get_template_data(key=None, templ_id=chosen_templ)
-        print(templ_crit_val)
         # Если для пользователя еще не создан словарь, создаем его
         if telegram_id not in user_templates:
             user_templates[telegram_id] = {"crit": [], "mnoj": []}
@@ -101,7 +101,8 @@ async def cmd_cr_templ(event: types.Message | types.CallbackQuery, state: FSMCon
                 one_mnoj_dict = {}
                 one_mnoj_dict['name'] = mnoj[0]
                 one_mnoj_dict['score'] = mnoj[1]
-                one_mnoj_dict['comment'] = mnoj[2]
+                one_mnoj_dict['what_answer'] = mnoj[2]
+                one_mnoj_dict['comment'] = mnoj[3]
 
                 crits_list = user_templates[telegram_id]['mnoj']
                 crits_list.append(one_mnoj_dict)
@@ -195,26 +196,50 @@ async def add_mnoj_one(message: Message, state: FSMContext):
         else:
             await state.set_state(Add_mnoj.name)
             await message.answer(
-                f'Добавьте новый множитель на который можно ответить "Да" или "Нет".\n'
-                f'• Например: Курили ли вы?',
+                f'• Добавьте новый множитель на который можно ответить "Да" или "Нет".\n'
+                f'(Например: Курили ли вы?)',
                 reply_markup=cancel_keyboard()
             )
 
+
 @router_cmd_cr_templ.message(Add_mnoj.name)
 async def add_mnoj_two(message: Message, state: FSMContext):
+    tg_id = message.from_user.id
     await state.update_data(name=message.text)
-    await state.set_state(Add_mnoj.score)
+    await state.set_state(Add_mnoj.what_answer)
     await message.answer(
-        f"Введите число, на которое будут умножаться все "
+        f'При каком ответе на ваш вопрос будут применяться множитель и начисляться очки?.\n'
+        f'• Отправьте:\n'
+        f'• 1 - если это ответ "Да"\n'
+        f'• 0 - если это ответ "Нет"\n',
+        reply_markup=cancel_keyboard()
+    )
+
+
+@router_cmd_cr_templ.message(Add_mnoj.what_answer)
+async def add_mnoj_three(message: Message, state: FSMContext):
+    await state.update_data(what_answer=int(message.text))
+    await state.set_state(Add_mnoj.score)
+    data = await state.get_data()
+    answer = data.get('what_answer')
+    yes_or_no = None
+
+    if answer == 1:
+        yes_or_no = 'Да'
+    elif answer == 0:
+        yes_or_no = 'Нет'
+
+    await message.answer(
+        f"• Введите число, на которое будут умножаться все "
         f"заработанные баллы за межотчетный период "
-        f'при ответе "Нет".\n'
+        f'при ответе "{yes_or_no}".\n'
         f"• Например: 2\n"
         f"• (Также можно ввести например 0.5, тогда "
         f"все баллы будут делиться на 2)."
     )
 
 @router_cmd_cr_templ.message(Add_mnoj.score)
-async def add_mnoj_three(message: Message, state: FSMContext):
+async def add_mnoj_four(message: Message, state: FSMContext):
     await state.update_data(score=float(message.text))
     await state.set_state(Add_mnoj.comment)
     await message.answer(
@@ -238,7 +263,7 @@ async def add_mnoj_end(message: Message, state: FSMContext):
     user_templates[telegram_id]["mnoj"].append(data)
 
     await state.clear()
-    await message.answer(f"Множитель < {data['name']} > успешно добавлен в шаблон.", reply_markup=create_template_keyboard())
+    await message.answer(f'Множитель "{data["""name"""]}" успешно добавлен в шаблон.', reply_markup=create_template_keyboard())
     print(user_templates)  # Для проверки в консоли
 
 
@@ -286,8 +311,9 @@ async def cmd_test_templ(message: Message, state: FSMContext):
             for one_mnoj in templ_mnoj_val_dict:
                 mnoj_name = one_mnoj.get('name')
                 mnoj_score = one_mnoj.get('score')
+                mnoj_answer = one_mnoj.get('what_answer')
                 mnoj_comment = one_mnoj.get('comment')
-                mnoj_tuple = (mnoj_name, mnoj_score, mnoj_comment)
+                mnoj_tuple = (mnoj_name, mnoj_score, mnoj_answer, mnoj_comment)
                 templ_mnoj_val.append(mnoj_tuple)
 
             print(f'DEBUG: crits: {templ_crits_val}\n'
@@ -315,7 +341,15 @@ async def cmd_test_templ(message: Message, state: FSMContext):
                 for mnoj in templ_mnoj_val:
                     mnoj_name = mnoj[0]
                     mnoj_score = mnoj[1]
-                    mnoj_comment = mnoj[2]
+                    mnoj_what_answer = mnoj[2]
+                    mnoj_comment = mnoj[3]
+
+                    mnoj_answer_word = None
+
+                    if mnoj_what_answer == 1:
+                        mnoj_answer_word = 'Да'
+                    else:
+                        mnoj_answer_word = 'Нет'
 
                     if mnoj_comment == 1:
                         mnoj_comment = 'Да'
@@ -323,7 +357,7 @@ async def cmd_test_templ(message: Message, state: FSMContext):
                         mnoj_comment = 'Нет'
 
                     output_mnoj.append(f'• "{mnoj_name}"\n'
-                                       f'При ответе "Нет" заработанные очки умножатся на "x{mnoj_score}"\n'
+                                       f'При ответе "{mnoj_answer_word}" заработанные очки умножатся на "x{mnoj_score}"\n'
                                        f'Возможность комментирования: "{mnoj_comment}"')
 
                 result_mnojs = "\n".join(output_mnoj)

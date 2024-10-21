@@ -180,9 +180,9 @@ async def fill_report_mnoj(message: Message, state: FSMContext):
                          f'• Отправьте "1", если да.\n'
                          f'• Отправьте "0", если нет.')
 
-    if mnoj[2] == 1:
+    if mnoj[3] == 1:
         await state.set_state(Mnoj.mnoj_comm)
-    elif mnoj[2] == 0:
+    elif mnoj[3] == 0:
         # Удаляем множ из словаря
         user_templ_mnoj[tg_id].pop(0)
         if user_templ_mnoj[tg_id]:
@@ -276,49 +276,95 @@ async def report_creating(message: Message, state: FSMContext):
         mnoj_score_sum = float(0)
 
         for mnoj_num in range(count_mnoj):
+            need_to_append = False
+
             mnoj = user_mnoj[mnoj_num]
 
             mnoj_name = str(mnoj[0])
             mnoj_score = float(mnoj[1])
-            mnoj_comment = int(mnoj[2])
+            mnoj_what_answer = int(mnoj[2])
+            mnoj_comment = int(mnoj[3])
 
-            if user_report_data[0] == "1":
-                yes_or_no = 'Да'
-                get_or_not = 'Не получен'
-                if mnoj_comment:
-                    output_mnoj.append(
-                        f'• {mnoj_name}: {yes_or_no}\n'
-                        f'Множитель x{mnoj_score}: {get_or_not}\n'
-                        f'Комментарий: "{user_report_data[1]}"'
-                    )
-                    user_report_data.pop(0)
-                    user_report_data.pop(0)
-                else:
-                    output_mnoj.append(
-                        f'• {mnoj_name}: {yes_or_no}\n'
-                        f'Множитель x{mnoj_score}: {get_or_not}'
-                    )
-                    user_report_data.pop(0)
-            else:
-                yes_or_no = 'Нет'
-                get_or_not = 'Получен'
-                if mnoj_comment:
-                    output_mnoj.append(
-                        f'• {mnoj_name}: {yes_or_no}\n'
-                        f'Множитель x{mnoj_score}: {get_or_not}\n'
-                        f'Комментарий: "{user_report_data[1]}"'
-                    )
-                    user_report_data.pop(0)
-                    user_report_data.pop(0)
-                else:
-                    output_mnoj.append(
-                        f'• {mnoj_name}: {yes_or_no}\n'
-                        f'Множитель x{mnoj_score}: {get_or_not}'
-                    )
-                    user_report_data.pop(0)
+            if int(mnoj_what_answer) == 1:
+                if int(user_report_data[0]) == int(mnoj_what_answer):
+                    yes_or_no = 'Да'
+                    get_or_not = 'Получен'
+
+                    need_to_append = True
+
+                    if mnoj_comment:
+                        output_mnoj.append(
+                            f'• {mnoj_name}: {yes_or_no}\n'
+                            f'Множитель x{mnoj_score}: {get_or_not}\n'
+                            f'Комментарий: "{user_report_data[1]}"'
+                        )
+                        user_report_data.pop(0)
+                        user_report_data.pop(0)
+                    else:
+                        output_mnoj.append(
+                            f'• {mnoj_name}: {yes_or_no}\n'
+                            f'Множитель x{mnoj_score}: {get_or_not}'
+                        )
+                        user_report_data.pop(0)
+                elif int(user_report_data[0]) != int(mnoj_what_answer):
+                    yes_or_no = 'Нет'
+                    get_or_not = 'Не получен'
+                    if mnoj_comment:
+                        output_mnoj.append(
+                            f'• {mnoj_name}: {yes_or_no}\n'
+                            f'Множитель x{mnoj_score}: {get_or_not}\n'
+                            f'Комментарий: "{user_report_data[1]}"'
+                        )
+                        user_report_data.pop(0)
+                        user_report_data.pop(0)
+                    else:
+                        output_mnoj.append(
+                            f'• {mnoj_name}: {yes_or_no}\n'
+                            f'Множитель x{mnoj_score}: {get_or_not}'
+                        )
+                        user_report_data.pop(0)
+
+            if int(mnoj_what_answer) == 0:
+                if int(user_report_data[0]) == int(mnoj_what_answer):
+                    yes_or_no = 'Нет'
+                    get_or_not = 'Получен'
+
+                    need_to_append = True
+
+                    if mnoj_comment:
+                        output_mnoj.append(
+                            f'• {mnoj_name}: {yes_or_no}\n'
+                            f'Множитель x{mnoj_score}: {get_or_not}\n'
+                            f'Комментарий: "{user_report_data[1]}"'
+                        )
+                        user_report_data.pop(0)
+                        user_report_data.pop(0)
+                    else:
+                        output_mnoj.append(
+                            f'• {mnoj_name}: {yes_or_no}\n'
+                            f'Множитель x{mnoj_score}: {get_or_not}'
+                        )
+                        user_report_data.pop(0)
+                elif int(user_report_data[0]) != int(mnoj_what_answer):
+                    yes_or_no = 'Да'
+                    get_or_not = 'Не получен'
+                    if mnoj_comment:
+                        output_mnoj.append(
+                            f'• {mnoj_name}: {yes_or_no}\n'
+                            f'Множитель x{mnoj_score}: {get_or_not}\n'
+                            f'Комментарий: "{user_report_data[1]}"'
+                        )
+                        user_report_data.pop(0)
+                        user_report_data.pop(0)
+                    else:
+                        output_mnoj.append(
+                            f'• {mnoj_name}: {yes_or_no}\n'
+                            f'Множитель x{mnoj_score}: {get_or_not}'
+                        )
+                        user_report_data.pop(0)
 
             # Применяем множитель только если ответ "Нет"
-            if yes_or_no == 'Нет':
+            if need_to_append:
                 scores_sum_for_today_with_mnoj *= float(mnoj_score) # Применяем множитель к сумме очков
                 need_to_output_mnoj_string = True
 

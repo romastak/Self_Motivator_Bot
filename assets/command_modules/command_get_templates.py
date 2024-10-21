@@ -123,7 +123,15 @@ async def look_at_the_struct_func(callback: CallbackQuery, state: FSMContext):
         for mnoj in templ_mnoj_val:
             mnoj_name = mnoj[0]
             mnoj_score = mnoj[1]
-            mnoj_comment = mnoj[2]
+            mnoj_what_answer = mnoj[2]
+            mnoj_comment = mnoj[3]
+
+            mnoj_answer_word = None
+
+            if mnoj_what_answer == 1:
+                mnoj_answer_word = 'Да'
+            else:
+                mnoj_answer_word = 'Нет'
 
             if mnoj_comment == 1:
                 mnoj_comment = 'Да'
@@ -131,7 +139,7 @@ async def look_at_the_struct_func(callback: CallbackQuery, state: FSMContext):
                 mnoj_comment = 'Нет'
 
             output_mnoj.append(f'• "{mnoj_name}"\n'
-                               f'При ответе "Нет" заработанные очки умножатся на "x{mnoj_score}"\n'
+                               f'При ответе "{mnoj_answer_word}" заработанные очки умножатся на "x{mnoj_score}"\n'
                                f'Возможность комментирования: "{mnoj_comment}"')
 
         result_mnojs = "\n".join(output_mnoj)

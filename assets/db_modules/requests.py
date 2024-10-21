@@ -50,6 +50,7 @@ async def save_user_template(telegram_id: int, username: str, template_name: str
                     user_template_id=new_template.id,
                     mnoj_name=mnoj['name'],
                     mnoj_score=mnoj['score'],
+                    mnoj_what_answer=mnoj['what_answer'],
                     mnoj_comment=mnoj['comment']
                 )
                 session.add(new_mnoj)
@@ -235,7 +236,7 @@ async def get_template_data(key: str, templ_id):
             templ_crit_val = templ_crit.all()
 
             templ_mnoj = await session.execute(
-                select(TemplateMnoj.mnoj_name, TemplateMnoj.mnoj_score, TemplateMnoj.mnoj_comment).filter_by(user_template_id=templ_id_val)
+                select(TemplateMnoj.mnoj_name, TemplateMnoj.mnoj_score, TemplateMnoj.mnoj_what_answer, TemplateMnoj.mnoj_comment).filter_by(user_template_id=templ_id_val)
             )
             templ_mnoj_val = templ_mnoj.all()
 
@@ -284,7 +285,8 @@ async def add_template_to_user(telegram_id, templ_name_val, templ_crits_val, tem
                         user_template_id=new_template.id,
                         mnoj_name=mnoj[0],
                         mnoj_score=mnoj[1],
-                        mnoj_comment=mnoj[2],
+                        mnoj_what_answer=mnoj[2],
+                        mnoj_comment=mnoj[3],
                     ))
                 session.add_all(new_template_mnoj)  # Добавляем все множители за раз
 

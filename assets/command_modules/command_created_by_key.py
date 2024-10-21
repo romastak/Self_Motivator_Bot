@@ -71,7 +71,15 @@ async def cmd_cr_by_key_done(message: Message, state: FSMContext):
             for mnoj in templ_mnoj_val:
                 mnoj_name = mnoj[0]
                 mnoj_score = mnoj[1]
-                mnoj_comment = mnoj[2]
+                mnoj_what_answer = mnoj[2]
+                mnoj_comment = mnoj[3]
+
+                mnoj_answer_word = None
+
+                if mnoj_what_answer == 1:
+                    mnoj_answer_word = 'Да'
+                else:
+                    mnoj_answer_word = 'Нет'
 
                 if mnoj_comment == 1:
                     mnoj_comment = 'Да'
@@ -79,8 +87,8 @@ async def cmd_cr_by_key_done(message: Message, state: FSMContext):
                     mnoj_comment = 'Нет'
 
                 output_mnoj.append(f'• "{mnoj_name}"\n'
-                                    f'Значение: "x{mnoj_score}"\n'
-                                    f'Возможность комментирования: "{mnoj_comment}"')
+                               f'При ответе "{mnoj_answer_word}" заработанные очки умножатся на "x{mnoj_score}"\n'
+                               f'Возможность комментирования: "{mnoj_comment}"')
 
             result_mnojs = "\n".join(output_mnoj)
 
