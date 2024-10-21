@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import insert, delete
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import Integer, update
-from assets.db_modules.models import User, UserTemplates, TemplateCrit, TemplateMnoj, async_session, AsyncSessionLocal
+from assets.db_modules.models import User, UserTemplates, TemplateCrit, TemplateMnoj, async_session, AsyncSessionLocal, TemplateUsl
 
 
 async def save_user_template(telegram_id: int, username: str, template_name: str, key_for_generating: str, crits: list, mnojs: list):
@@ -240,7 +240,12 @@ async def get_template_data(key: str, templ_id):
             )
             templ_mnoj_val = templ_mnoj.all()
 
-            return templ_name_val, templ_crit_val, templ_mnoj_val
+            templ_usl = await session.execute(
+                select(TemplateUsl.usl_name, TemplateUsl.usl_score_if_yes, TemplateUsl.usl_score_if_no, TemplateUsl.usl_comment).filter_by(user_template_id=templ_id_val)
+            )
+            templ_usl_val = templ_mnoj.all()
+
+            return templ_name_val, templ_crit_val, templ_mnoj_val, templ_usl_val
 
 
 # Добавляем шаблон пользователю, который получен по ключу

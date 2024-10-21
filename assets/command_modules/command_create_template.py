@@ -77,7 +77,7 @@ async def cmd_cr_templ(event: types.Message | types.CallbackQuery, state: FSMCon
         await state.update_data(chosen_templ_name=chosen_templ_name)
         id_edit_templ[telegram_id] = chosen_templ
         print(chosen_templ)
-        templ_name_val, templ_crit_val, templ_mnoj_val = await get_template_data(key=None, templ_id=chosen_templ)
+        templ_name_val, templ_crit_val, templ_usl_val, templ_mnoj_val = await get_template_data(key=None, templ_id=chosen_templ)
         # Если для пользователя еще не создан словарь, создаем его
         if telegram_id not in user_templates:
             user_templates[telegram_id] = {"crit": [], "mnoj": [], "usl": []}
@@ -105,9 +105,14 @@ async def cmd_cr_templ(event: types.Message | types.CallbackQuery, state: FSMCon
                 one_mnoj_dict['what_answer'] = mnoj[2]
                 one_mnoj_dict['comment'] = mnoj[3]
 
-                crits_list = user_templates[telegram_id]['mnoj']
-                crits_list.append(one_mnoj_dict)
-                index += 1
+        if templ_usl_val:
+            index = 0
+            for usl in templ_usl_val:
+                one_usl_dict = {}
+                one_usl_dict['name'] = usl[0]
+                one_usl_dict['score_if_yes'] = usl[1]
+                one_usl_dict['score_if_no'] = usl[2]
+                one_usl_dict['comment'] = usl[3]
 
         is_editing[telegram_id] = True
 
@@ -282,7 +287,7 @@ async def add_usl_one(message: Message, state: FSMContext):
 
 
 @router_cmd_cr_templ.message(Add_usl.name)
-async def add_usl_one(message: Message, state: FSMContext):
+async def add_usl_two(message: Message, state: FSMContext):
 
     await state.update_data(name=message.text)
     await state.set_state(Add_usl.score_if_yes) # Установить состояние машины
@@ -297,7 +302,7 @@ async def add_usl_one(message: Message, state: FSMContext):
 
 
 @router_cmd_cr_templ.message(Add_usl.score_if_yes)
-async def add_usl_one(message: Message, state: FSMContext):
+async def add_usl_three(message: Message, state: FSMContext):
 
     await state.update_data(score_if_yes=message.text)
     await state.set_state(Add_usl.score_if_no) # Установить состояние машины
@@ -312,7 +317,7 @@ async def add_usl_one(message: Message, state: FSMContext):
 
 
 @router_cmd_cr_templ.message(Add_usl.score_if_no)
-async def add_usl_one(message: Message, state: FSMContext):
+async def add_usl_four(message: Message, state: FSMContext):
 
     await state.update_data(score_if_no=message.text)
     await state.set_state(Add_usl.comment) # Установить состояние машины
@@ -444,172 +449,138 @@ async def cmd_test_templ(message: Message, state: FSMContext):
 
                 result_mnojs = "\n".join(output_mnoj)
 
-            if templ_mnoj_val:
+            #  Сбор условий
+            if templ_usl_val:
+                for usl in templ_usl_val:
+                    usl_name = usl[0]
+                    usl_score_if_yes = usl[1]
+                    usl_score_if_no = usl[2]
+                    usl_comment = usl[3]
+
+                    usl_comment_word = None
+
+                    score_val = None
+
+                    if usl_comment == 1:
+                        usl_comment_word = 'Да'
+                    else:
+                        usl_comment_word = 'Нет'
+
+                    if float(usl_score_if_yes) < 0:
+                        final_val_yes = f'уменьшатся на {usl_score_if_yes}'
+                    elif float(usl_score_if_yes) > 0:
+                        final_val_yes = f'увеличатся на {usl_score_if_yes}'
+                    elif float(usl_score_if_yes) == 0:
+                        final_val_yes = 'не изменятся.'
+
+                    if float(usl_score_if_no) < 0:
+                        final_val_no = f'уменьшатся на {usl_score_if_no}'
+                    elif float(usl_score_if_no) > 0:
+                        final_val_no = f'увеличатся на {usl_score_if_no}'
+                    elif float(usl_score_if_no) == 0:
+                        final_val_no = 'не изменятся.'
+
+                    output_usl.append(f'• "{usl_name}"\n'
+                                      f'При ответе "Да" заработанные очки {final_val_yes}\n'
+                                      f'При ответе "Нет" заработанные очки {final_val_no}\n'
+                                      f'Возможность комментирования: "{usl_comment_word}"')
+
+                result_usls = "\n".join(output_usl)
+
+            if templ_usl_val and not templ_mnoj_val and not templ_crits_val:
                 await message.answer(f'Структура шаблона "{templ_name}":\n'
-                                                 f'................................................\n'
-                                                 f'Критерии:\n'
-                                                 f'\n'
-                                                 f'{result_crits}\n'
-                                                 f'................................................\n'
-                                                 f'Множители:\n'
-                                                 f'\n'
-                                                 f'{result_mnojs}')
-            else:
+                                     f'................................................\n'
+                                     f'Условия:\n'
+                                     f'\n'
+                                     f'{result_usls}')
+
+            elif templ_usl_val and templ_mnoj_val and not templ_crits_val:
                 await message.answer(f'Структура шаблона "{templ_name}":\n'
-                                                 f'................................................\n'
-                                                 f'Критерии:\n'
-                                                 f'\n'
-                                                 f'{result_crits}')
+                                     f'................................................\n'
+                                     f'Условия:\n'
+                                     f'\n'
+                                     f'{result_usls}\n'
+                                     f'................................................\n'
+                                     f'Множители:\n'
+                                     f'\n'
+                                     f'{result_mnojs}')
 
-                #  Сбор условий
-                if templ_usl_val:
-                    for usl in templ_usl_val:
-                        usl_name = usl[0]
-                        usl_score_if_yes = usl[1]
-                        usl_score_if_no = usl[2]
-                        usl_comment = usl[3]
+            elif templ_usl_val and not templ_mnoj_val and templ_crits_val:
+                await message.answer(f'Структура шаблона "{templ_name}":\n'
+                                     f'................................................\n'
+                                     f'Критерии:\n'
+                                     f'\n'
+                                     f'{result_crits}\n'
+                                     f'................................................\n'
+                                     f'Условия:\n'
+                                     f'\n'
+                                     f'{result_usls}\n'
+                                     f'................................................\n'
+                                     )
 
-                        usl_comment_word = None
+            elif templ_usl_val and templ_mnoj_val and templ_crits_val:
+                await message.answer(f'Структура шаблона "{templ_name}":\n'
+                                     f'................................................\n'
+                                     f'Критерии:\n'
+                                     f'\n'
+                                     f'{result_crits}\n'
+                                     f'................................................\n'
+                                     f'Условия:\n'
+                                     f'\n'
+                                     f'{result_usls}\n'
+                                     f'................................................\n'
+                                     f'Множители:\n'
+                                     f'\n'
+                                     f'{result_mnojs}'
+                                     )
 
-                        score_val = None
+            elif not templ_usl_val and templ_mnoj_val and templ_crits_val:
+                await message.answer(f'Структура шаблона "{templ_name}":\n'
+                                     f'................................................\n'
+                                     f'Критерии:\n'
+                                     f'\n'
+                                     f'{result_crits}\n'
+                                     f'................................................\n'
+                                     f'Множители:\n'
+                                     f'\n'
+                                     f'{result_mnojs}'
+                                     )
 
-                        if usl_comment == 1:
-                            usl_comment_word = 'Да'
-                        else:
-                            usl_comment_word = 'Нет'
+            elif templ_usl_val and templ_mnoj_val and templ_crits_val:
+                await message.answer(f'Структура шаблона "{templ_name}":\n'
+                                     f'................................................\n'
+                                     f'Критерии:\n'
+                                     f'\n'
+                                     f'{result_crits}\n'
+                                     f'................................................\n'
+                                     f'Условия:\n'
+                                     f'\n'
+                                     f'{result_usls}\n'
+                                     f'................................................\n'
+                                     f'Множители:\n'
+                                     f'\n'
+                                     f'{result_mnojs}'
+                                     )
 
-                        if float(usl_score_if_yes) < 0:
-                            final_val_yes = f'уменьшатся на {usl_score_if_yes}'
-                        elif float(usl_score_if_yes) > 0:
-                            final_val_yes = f'увеличатся на {usl_score_if_yes}'
-                        elif float(usl_score_if_yes) == 0:
-                            final_val_yes = 'не изменятся.'
+            elif templ_usl_val and templ_crits_val and not templ_mnoj_val:
+                await message.answer(f'Структура шаблона "{templ_name}":\n'
+                                     f'................................................\n'
+                                     f'Критерии:\n'
+                                     f'\n'
+                                     f'{result_crits}\n'
+                                     )
 
-                        if float(usl_score_if_no) < 0:
-                            final_val_no = f'уменьшатся на {usl_score_if_no}'
-                        elif float(usl_score_if_no) > 0:
-                            final_val_no = f'увеличатся на {usl_score_if_no}'
-                        elif float(usl_score_if_no) == 0:
-                            final_val_no = 'не изменятся.'
-
-                        output_usl.append(f'• "{usl_name}"\n'
-                                           f'При ответе "Да" заработанные очки {final_val_yes}\n'
-                                           f'При ответе "Нет" заработанные очки {final_val_no}\n'
-                                           f'Возможность комментирования: "{usl_comment_word}"')
-
-                    result_usls = "\n".join(output_usl)
-
-                if result_usls and not templ_mnoj_val and not templ_crits_val:
-                    await message.answer(f'Структура шаблона "{templ_name}":\n'
-                                         f'................................................\n'
-                                         f'Условия:\n'
-                                         f'\n'
-                                         f'{result_usls}')
-
-                elif result_usls and templ_mnoj_val and not templ_crits_val:
-                    await message.answer(f'Структура шаблона "{templ_name}":\n'
-                                         f'................................................\n'
-                                         f'Условия:\n'
-                                         f'\n'
-                                         f'{result_usls}\n'
-                                         f'................................................\n'
-                                         f'Множители:\n'
-                                         f'\n'
-                                         f'{result_mnojs}')
-
-                elif result_usls and not templ_mnoj_val and templ_crits_val:
-                    await message.answer(f'Структура шаблона "{templ_name}":\n'
-                                         f'................................................\n'
-                                         f'Критерии:\n'
-                                         f'\n'
-                                         f'{result_crits}\n'
-                                         f'................................................\n'
-                                         f'Условия:\n'
-                                         f'\n'
-                                         f'{result_usls}\n'
-                                         f'................................................\n'
-                                         )
-
-                elif result_usls and templ_mnoj_val and templ_crits_val:
-                    await message.answer(f'Структура шаблона "{templ_name}":\n'
-                                         f'................................................\n'
-                                         f'Критерии:\n'
-                                         f'\n'
-                                         f'{result_crits}\n'
-                                         f'................................................\n'
-                                         f'Условия:\n'
-                                         f'\n'
-                                         f'{result_usls}\n'
-                                         f'................................................\n'
-                                         f'Множители:\n'
-                                         f'\n'
-                                         f'{result_mnojs}'
-                                         )
-
-                elif not result_usls and templ_mnoj_val and templ_crits_val:
-                    await message.answer(f'Структура шаблона "{templ_name}":\n'
-                                         f'................................................\n'
-                                         f'Критерии:\n'
-                                         f'\n'
-                                         f'{result_crits}\n'
-                                         f'................................................\n'
-                                         f'Множители:\n'
-                                         f'\n'
-                                         f'{result_mnojs}'
-                                         )
-
-                elif result_usls and templ_mnoj_val and templ_crits_val:
-                    await message.answer(f'Структура шаблона "{templ_name}":\n'
-                                         f'................................................\n'
-                                         f'Критерии:\n'
-                                         f'\n'
-                                         f'{result_crits}\n'
-                                         f'................................................\n'
-                                         f'Условия:\n'
-                                         f'\n'
-                                         f'{result_usls}\n'
-                                         f'................................................\n'
-                                         f'Множители:\n'
-                                         f'\n'
-                                         f'{result_mnojs}'
-                                         )
-
-                elif result_usls and templ_crits_val and not templ_mnoj_val:
-                    await message.answer(f'Структура шаблона "{templ_name}":\n'
-                                         f'................................................\n'
-                                         f'Критерии:\n'
-                                         f'\n'
-                                         f'{result_crits}\n'
-                                         )
-
-                elif not result_usls and templ_mnoj_val and templ_crits_val:
-                    await message.answer(f'Структура шаблона "{templ_name}":\n'
-                                         f'................................................\n'
-                                         f'Критерии:\n'
-                                         f'\n'
-                                         f'{result_crits}\n'
-                                         f'................................................\n'
-                                         f'Множители:\n'
-                                         f'\n'
-                                         f'{result_mnojs}'
-                                         )
-
-                elif templ_mnoj_val:
-                    await message.answer(f'Структура шаблона "{templ_name}":\n'
-                                         f'................................................\n'
-                                         f'Критерии:\n'
-                                         f'\n'
-                                         f'{result_crits}\n'
-                                         f'................................................\n'
-                                         f'Множители:\n'
-                                         f'\n'
-                                         f'{result_mnojs}')
-                else:
-                    await message.answer(f'Структура шаблона "{templ_name}":\n'
-                                         f'................................................\n'
-                                         f'Критерии:\n'
-                                         f'\n'
-                                         f'{result_crits}')
+            elif not templ_usl_val and templ_mnoj_val and templ_crits_val:
+                await message.answer(f'Структура шаблона "{templ_name}":\n'
+                                     f'................................................\n'
+                                     f'Критерии:\n'
+                                     f'\n'
+                                     f'{result_crits}\n'
+                                     f'................................................\n'
+                                     f'Множители:\n'
+                                     f'\n'
+                                     f'{result_mnojs}'
+                                     )
 
 @router_cmd_cr_templ.message(F.text == "Протестировать шаблон случайными значениями")
 async def cmd_test_templ(message: Message):

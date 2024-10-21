@@ -97,7 +97,7 @@ async def look_at_the_struct_func(callback: CallbackQuery, state: FSMContext):
 
     print(f'DEBUG: get data from state: {templ_id}')
     # Извлекаем данные шаблона по ID
-    templ_name_val, templ_crits_val, templ_mnoj_val = await get_template_data(key=None, templ_id=templ_id)
+    templ_name_val, templ_crits_val, templ_usl_val, templ_mnoj_val = await get_template_data(key=None, templ_id=templ_id)
     await state.update_data(templ_data=(templ_name_val, templ_crits_val, templ_mnoj_val))
     print(f'DEBUG: имя, критерии, множители: {templ_name_val}, {templ_crits_val}, {templ_mnoj_val}')
 
