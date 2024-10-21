@@ -41,7 +41,7 @@ async def main():
     dp.include_router(router_create_report)
     tg_ids = await get_all_telegram_ids()
 
-    # for id in tg_ids: # Отправляем всем main_keyboard при запуске бота
+    # for id in tg_ids: # Отправляем всем юзерам бота клаву main_keyboard при запуске бота
     #     await bot.send_message(chat_id=id, text='Бот снова работает', reply_markup=main_keyboard())
 
     await dp.start_polling(bot)

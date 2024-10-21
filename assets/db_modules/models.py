@@ -11,14 +11,17 @@ engine = create_async_engine(url='postgresql+asyncpg://postgres:1234@127.0.0.1:5
 async_session = async_sessionmaker(engine)  # Подключение к БД
 AsyncSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
 
+
 class Base(AsyncAttrs, DeclarativeBase):  # Основной класс для всех моделей
     pass
+
 
 class User(Base):
     __tablename__ = 'users'  # Название таблицы
     id: Mapped[int] = mapped_column(primary_key=True)
     tg_id: Mapped[int] = mapped_column(BigInteger)
     username: Mapped[str] = mapped_column(String)
+
 
 class UserTemplates(Base):
 	__tablename__ = 'user_templates'
@@ -28,6 +31,7 @@ class UserTemplates(Base):
 	key_for_generating: Mapped[str] = mapped_column(String)
 	global_score: Mapped[float] = mapped_column(nullable=True, default=0.0)
 
+
 class TemplateCrit(Base):
     __tablename__ = 'template_crit'
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -36,17 +40,31 @@ class TemplateCrit(Base):
     crit_score: Mapped[float] = mapped_column()
     crit_comment: Mapped[int] = mapped_column()
 
+
 class TemplateMnoj(Base):
     __tablename__ = 'template_mnoj'
     id: Mapped[int] = mapped_column(primary_key=True)
     user_template_id: Mapped[int] = mapped_column(ForeignKey('user_templates.id'))
     mnoj_name: Mapped[str] = mapped_column(String)
+    mnoj_what_answer: Mapped[int] = mapped_column(default=1)
     mnoj_score: Mapped[float] = mapped_column()
     mnoj_comment: Mapped[int] = mapped_column()
+
+
+class TemplateUsl(Base):
+    __tablename__ = 'template_usl'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_template_id: Mapped[int] = mapped_column(ForeignKey('user_templates.id'))
+    usl_name: Mapped[str] = mapped_column(String)
+    usl_score_if_yes: Mapped[float] = mapped_column()
+    usl_score_if_no: Mapped[float] = mapped_column()
+    usl_comment: Mapped[int] = mapped_column()
+
 
 async def async_main():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)  # Создание таблиц в БД согласно моделям
+
 
 # Вызов функции для создания таблиц
 if __name__ == "__main__":

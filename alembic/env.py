@@ -5,7 +5,7 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from models import Base # Импортирую свои модели БД
+from assets.db_modules.models import Base #  Импортирую свои модели БД
 
 # Создание синхронного движка
 engine = create_engine('postgresql://postgres:1234@127.0.0.1:5432/motivator_db')
