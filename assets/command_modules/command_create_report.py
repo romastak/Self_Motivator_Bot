@@ -86,6 +86,7 @@ async def create_report(message: Message, state: FSMContext):
 async def start_report(callback: CallbackQuery, state: FSMContext):
 
     tg_id = callback.from_user.id
+
     match = re.match(r"^rep_templ_id_(\d+)$", callback.data)
     templ_id = callback.data
     templ_id = templ_id.split('_')
@@ -103,8 +104,13 @@ async def start_report(callback: CallbackQuery, state: FSMContext):
         user_templ_global_score_dict[tg_id] = (chosen_templ[0], gl_score)
         print(user_templ_global_score_dict[tg_id])
 
-        #  Наполняем глобальные списки существующими элементами шаблона
+        #  Определяем ключи в словаре
+        user_templ_crits[tg_id] = None
+        user_templ_usl[tg_id] = None
+        user_templ_mnoj[tg_id] = None
         user_templ_name[tg_id] = templ_name_val
+
+        #  Наполняем глобальные списки существующими элементами шаблона
         if templ_crit_val:
             user_templ_crits[tg_id] = templ_crit_val
             if tg_id not in user_templ_crits_full:
@@ -114,13 +120,14 @@ async def start_report(callback: CallbackQuery, state: FSMContext):
             if tg_id not in user_templ_mnoj_full:
                 user_templ_mnoj_full[tg_id] = templ_mnoj_val.copy()
         if templ_usl_val:
-            user_templ_mnoj[tg_id] = templ_usl_val
+            user_templ_usl[tg_id] = templ_usl_val
             if tg_id not in user_templ_usl_full:
                 user_templ_usl_full[tg_id] = templ_usl_val.copy()
 
-        if user_templ_crits[tg_id]:
-            await state.set_state(Crits.crit_score)
+        print(user_templ_crits, user_templ_usl, user_templ_mnoj)
 
+        if user_templ_crits.get(tg_id):
+            await state.set_state(Crits.crit_score)
             await callback.message.edit_text(f'• Введите количество времени в часах сколько вы потратили за межотчетный'
                                                 f' период на критерий "{templ_crit_val[0][0]}".\n'
                                                 f'Например: 2.5')
@@ -132,24 +139,44 @@ async def start_report(callback: CallbackQuery, state: FSMContext):
 
                 #  Удаляем критерий из словаря и выбираем дальнейший путь
                 user_templ_crits[tg_id].pop(0)
-                if user_templ_crits[tg_id]:
+                if user_templ_crits.get(tg_id):
                     await state.set_state(Crits.crit_score)
-                elif not user_templ_crits[tg_id]:
-                    if user_templ_usl[tg_id]:
+                if not user_templ_crits.get(tg_id):
+                    if user_templ_usl.get(tg_id):
                         await state.set_state(Usl.usl_score_if_yes)
-                    elif not user_templ_usl[tg_id]:
-                        if user_templ_mnoj[tg_id]:
+                    elif not user_templ_usl.get(tg_id):
+                        if user_templ_mnoj.get(tg_id):
                             await state.set_state(Mnoj.mnoj_score)
-                        if not user_templ_mnoj[tg_id]:
+                        if not user_templ_mnoj.get(tg_id):
                             await state.set_state(ReportCreating.just_state)
 
-        elif not user_templ_crits[tg_id]:
-            if user_templ_usl[tg_id]:
+        elif not user_templ_crits.get(tg_id):
+            if user_templ_usl.get(tg_id):
+
                 await state.set_state(Usl.usl_score_if_yes)
-            elif not user_templ_usl[tg_id]:
-                if user_templ_mnoj[tg_id]:
+                await callback.message.edit_text(f'Совершали ли вы действия, предусмотренные условием "{templ_usl_val[0][0]}"?\n'
+                 f'• Отправьте "1", если да.\n'
+                 f'• Отправьте "0", если нет.')
+
+                #  Если commentable
+                if templ_usl_val[0][2] == 1:
+                    await state.set_state(Usl.usl_comm)
+                elif templ_usl_val[0][2] == 0:
+
+                    #  Удаляем критерий из словаря и выбираем дальнейший путь
+                    user_templ_usl[tg_id].pop(0)
+                    if user_templ_usl.get(tg_id):
+                        await state.set_state(Usl.usl_score_if_yes)
+                    elif not user_templ_usl.get(tg_id):
+                        if user_templ_mnoj.get(tg_id):
+                            await state.set_state(Mnoj.mnoj_score)
+                        if not user_templ_mnoj.get(tg_id):
+                            await state.set_state(ReportCreating.just_state)
+
+            elif not user_templ_usl.get(tg_id):
+                if user_templ_mnoj.get(tg_id):
                     await state.set_state(Mnoj.mnoj_score)
-                if not user_templ_mnoj[tg_id]:
+                if not user_templ_mnoj.get(tg_id):
                     await state.set_state(ReportCreating.just_state)
 
     user_report[tg_id] = {'data': []}
@@ -173,12 +200,12 @@ async def fill_report_crits(message: Message, state: FSMContext):
         await state.set_state(Crits.crit_comm)
     elif crit[2] == 0:
         user_templ_crits[tg_id].pop(0)
-        if user_templ_crits[tg_id]:
+        if user_templ_crits.get(tg_id):
             await state.set_state(Crits.crit_score)
-        elif not user_templ_crits[tg_id]:
-            if user_templ_mnoj[tg_id]:
+        elif not user_templ_crits.get(tg_id):
+            if user_templ_mnoj.get(tg_id):
                 await state.set_state(Mnoj.mnoj_score)
-            elif not user_templ_mnoj[tg_id]:
+            elif not user_templ_mnoj.get(tg_id):
                 await state.set_state(ReportCreating.just_state)
 
 
@@ -194,21 +221,21 @@ async def fill_report_crit_comms(message: Message, state: FSMContext):
 
     await message.answer(f'• Введите ваш комментарий к критерию "{crit[0]}".')
 
-    if user_templ_crits[tg_id]:
+    if user_templ_crits.get(tg_id):
         await state.set_state(Crits.crit_score)
-    elif not user_templ_crits[tg_id]:
-        if user_templ_usl[tg_id]:
+    elif not user_templ_crits.get(tg_id):
+        if user_templ_usl.get(tg_id):
             await state.set_state(Usl.usl_score_if_yes)
-        elif not user_templ_usl[tg_id]:
-            if user_templ_mnoj[tg_id]:
+        elif not user_templ_usl.get(tg_id):
+            if user_templ_mnoj.get(tg_id):
                 await state.set_state(Mnoj.mnoj_score)
-            if not user_templ_mnoj[tg_id]:
+            if not user_templ_mnoj.get(tg_id):
                 await state.set_state(ReportCreating.just_state)
 
 
 @router_create_report.message(Usl.usl_score_if_yes)
-async def fill_report_usl(message: Message, state: FSMContext):
-
+async def fill_report_usl(message: Message, callback: CallbackQuery, state: FSMContext):
+    print('тест2')
     tg_id = message.from_user.id
 
     usl = user_templ_usl[tg_id][0]
@@ -220,17 +247,21 @@ async def fill_report_usl(message: Message, state: FSMContext):
                          f'• Отправьте "1", если да.\n'
                          f'• Отправьте "0", если нет.')
 
+    await callback.message.edit_text(f'Совершали ли вы действия, предусмотренные условием "{mnoj[0]}"?\n'
+                         f'• Отправьте "1", если да.\n'
+                         f'• Отправьте "0", если нет.')
+
     if usl[3] == 1:
         await state.set_state(Usl.usl_comm)
     elif mnoj[3] == 0:
         # Удаляем усл из словаря и идем дальше
         user_templ_usl[tg_id].pop(0)
-        if user_templ_usl[tg_id]:
+        if user_templ_usl.get(tg_id):
             await state.set_state(Usl.usl_comm)
-        elif not user_templ_usl[tg_id]:
-            if user_templ_mnoj[tg_id]:
+        elif not user_templ_usl.get(tg_id):
+            if user_templ_mnoj.get(tg_id):
                 await state.set_state(Mnoj.mnoj_score)
-            elif not user_templ_mnoj[tg_id]:
+            elif not user_templ_mnoj.get(tg_id):
                 await state.set_state(ReportCreating.just_state)
 
 
@@ -246,12 +277,12 @@ async def fill_report_mnoj_comms(message: Message, state: FSMContext):
 
     await message.answer(f'• Введите ваш комментарий к условию "{usl[0]}".')
 
-    if user_templ_usl[tg_id]:
+    if user_templ_usl.get(tg_id):
         await state.set_state(Usl.usl_comm)
-    elif not user_templ_usl[tg_id]:
-        if user_templ_mnoj[tg_id]:
+    elif not user_templ_usl.get(tg_id):
+        if user_templ_mnoj.get(tg_id):
             await state.set_state(Mnoj.mnoj_score)
-        elif not user_templ_mnoj[tg_id]:
+        elif not user_templ_mnoj.get(tg_id):
             await state.set_state(ReportCreating.just_state)
 
 
@@ -274,9 +305,9 @@ async def fill_report_mnoj(message: Message, state: FSMContext):
     elif mnoj[3] == 0:
         # Удаляем множ из словаря
         user_templ_mnoj[tg_id].pop(0)
-        if user_templ_mnoj[tg_id]:
+        if user_templ_mnoj.get(tg_id):
             await state.set_state(Mnoj.mnoj_score)
-        elif not user_templ_mnoj[tg_id]:
+        elif not user_templ_mnoj.get(tg_id):
             await state.set_state(ReportCreating.just_state)
 
 
@@ -291,9 +322,9 @@ async def fill_report_mnoj_comms(message: Message, state: FSMContext):
 
     await message.answer(f'• Введите ваш комментарий к множителю "{mnoj[0]}".')
 
-    if user_templ_mnoj[tg_id]:
+    if user_templ_mnoj.get(tg_id):
         await state.set_state(Mnoj.mnoj_score)
-    elif not user_templ_mnoj[tg_id]:
+    elif not user_templ_mnoj.get(tg_id):
         await state.set_state(ReportCreating.just_state)
 
 
