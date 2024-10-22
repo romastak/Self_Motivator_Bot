@@ -33,6 +33,8 @@ async def cmd_cr_by_key(message: Message, state: FSMContext):
 async def cmd_cr_by_key_done(message: Message, state: FSMContext):
     output_crits = []
     output_mnoj = []
+    output_usl = []
+
     await state.update_data(key=message.text)
     data = await state.get_data()
     key = data['key']
@@ -43,9 +45,9 @@ async def cmd_cr_by_key_done(message: Message, state: FSMContext):
 
     if key in templ_keys:
         # Извлекаем данные шаблона по ключу
-        templ_name_val, templ_crits_val, templ_mnoj_val = await get_template_data(key=key, templ_id=None)
-        await state.update_data(templ_data=(templ_name_val, templ_crits_val, templ_mnoj_val))
-        print(f'DEBUG: имя, критерии, множители: {templ_name_val}, {templ_crits_val}, {templ_mnoj_val}')
+        templ_name_val, templ_crits_val, templ_mnoj_val, templ_usl_val = await get_template_data(key=key, templ_id=None)
+        await state.update_data(templ_data=(templ_name_val, templ_crits_val, templ_mnoj_val, templ_usl_val))
+        print(f'DEBUG: имя, критерии, множители: {templ_name_val}, {templ_crits_val}, {templ_mnoj_val}, {templ_usl_val}')
 
         await message.answer(f'Найден шаблон "{templ_name_val}".')
 
@@ -92,22 +94,143 @@ async def cmd_cr_by_key_done(message: Message, state: FSMContext):
 
             result_mnojs = "\n".join(output_mnoj)
 
-        if templ_mnoj_val:
-            await message.answer(f'Структура шаблона:\n'
-                                 f'................................................\n'
-                                 f'Критерии:\n'
-                                 f'\n'
-                                 f'{result_crits}\n'
-                                 f'................................................\n'
-                                 f'Множители:\n'
-                                 f'\n'
-                                 f'{result_mnojs}', reply_markup=add_templ_by_key_keyboard())
-        else:
-            await message.answer(f'Структура шаблона:\n'
-                                 f'................................................\n'
-                                 f'Критерии:\n'
-                                 f'\n'
-                                 f'{result_crits}', reply_markup=add_templ_by_key_keyboard())
+        #  Сбор условий
+        if templ_usl_val:
+            for usl in templ_usl_val:
+                usl_name = usl[0]
+                usl_score_if_yes = usl[1]
+                usl_score_if_no = usl[2]
+                usl_comment = usl[3]
+
+                usl_comment_word = None
+
+                score_val = None
+
+                if usl_comment == 1:
+                    usl_comment_word = 'Да'
+                else:
+                    usl_comment_word = 'Нет'
+
+                if float(usl_score_if_yes) < 0:
+                    final_val_yes = f'уменьшатся на {usl_score_if_yes}'
+                elif float(usl_score_if_yes) > 0:
+                    final_val_yes = f'увеличатся на {usl_score_if_yes}'
+                elif float(usl_score_if_yes) == 0:
+                    final_val_yes = 'не изменятся.'
+
+                if float(usl_score_if_no) < 0:
+                    final_val_no = f'уменьшатся на {usl_score_if_no}'
+                elif float(usl_score_if_no) > 0:
+                    final_val_no = f'увеличатся на {usl_score_if_no}'
+                elif float(usl_score_if_no) == 0:
+                    final_val_no = 'не изменятся.'
+
+                output_usl.append(f'• "{usl_name}"\n'
+                                  f'При ответе "Да" заработанные очки {final_val_yes}\n'
+                                  f'При ответе "Нет" заработанные очки {final_val_no}\n'
+                                  f'Возможность комментирования: "{usl_comment_word}"')
+
+            result_usls = "\n".join(output_usl)
+
+        #  Вывод отчета, учитывая какие элементы присутствуют
+        pass_it = False
+
+        if templ_crits_val:
+            if templ_mnoj_val:
+                if templ_usl_val:
+                    pass_it = True
+                    await message.answer(f'Структура шаблона "{templ_name_val}":\n'
+                                                     f'................................................\n'
+                                                     f'Критерии:\n'
+                                                     f'\n'
+                                                     f'{result_crits}\n'
+                                                     f'................................................\n'
+                                                     f'Условия:\n'
+                                                     f'\n'
+                                                     f'{result_usls}\n'
+                                                     f'................................................\n'
+                                                     f'Множители:\n'
+                                                     f'\n'
+                                                     f'{result_mnojs}',
+                                                     reply_markup=add_templ_by_key_keyboard()
+                                                     )
+
+        if not pass_it:
+            if not templ_crits_val:
+                if templ_mnoj_val:
+                    if templ_usl_val:
+                        pass_it = True
+                        await message.answer(f'Структура шаблона "{templ_name_val}":\n'
+                                                         f'................................................\n'
+                                                         f'Условия:\n'
+                                                         f'\n'
+                                                         f'{result_usls}\n'
+                                                         f'................................................\n'
+                                                         f'Множители:\n'
+                                                         f'\n'
+                                                         f'{result_mnojs}',
+                                                         reply_markup=add_templ_by_key_keyboard()
+                                                         )
+
+        if not pass_it:
+            if templ_usl_val:
+                if templ_crits_val:
+                    if not templ_mnoj_val:
+                        pass_it = True
+                        await message.answer(f'Структура шаблона "{templ_name_val}":\n'
+                                                         f'................................................\n'
+                                                         f'Критерии:\n'
+                                                         f'\n'
+                                                         f'{result_crits}\n'
+                                                         f'................................................\n'
+                                                         f'Условия:\n'
+                                                         f'\n'
+                                                         f'{result_usls}',
+                                                         reply_markup=add_templ_by_key_keyboard()
+                                                         )
+
+        if not pass_it:
+            if not templ_usl_val:
+                if templ_crits_val:
+                    if templ_mnoj_val:
+                        pass_it = True
+                        await message.answer(f'Структура шаблона "{templ_name_val}":\n'
+                                                         f'................................................\n'
+                                                         f'Критерии:\n'
+                                                         f'\n'
+                                                         f'{result_crits}\n'
+                                                         f'................................................\n'
+                                                         f'Множители:\n'
+                                                         f'\n'
+                                                         f'{result_mnojs}',
+                                                         reply_markup=add_templ_by_key_keyboard()
+                                                         )
+
+        if not pass_it:
+            if not templ_usl_val:
+                if templ_crits_val:
+                    if not templ_mnoj_val:
+                        pass_it = True
+                        await message.answer(f'Структура шаблона "{templ_name_val}":\n'
+                                                         f'................................................\n'
+                                                         f'Критерии:\n'
+                                                         f'\n'
+                                                         f'{result_crits}',
+                                                         reply_markup=add_templ_by_key_keyboard()
+                                                         )
+
+        if not pass_it:
+            if templ_usl_val:
+                if not templ_crits_val:
+                    if not templ_mnoj_val:
+                        pass_it = True
+                        await message.answer(f'Структура шаблона "{templ_name_val}":\n'
+                                                         f'................................................\n'
+                                                         f'Условия:\n'
+                                                         f'\n'
+                                                         f'{result_usls}',
+                                                         reply_markup=add_templ_by_key_keyboard()
+                                                         )
 
     else:
         await message.answer('Шаблон не найден.', reply_markup=main_keyboard())
@@ -121,13 +244,14 @@ async def cmd_add_by_key_done(callback: CallbackQuery, state: FSMContext):
     templ_name_val = templ_data_clear[0]
     templ_crits_val = templ_data_clear[1]
     templ_mnoj_val = templ_data_clear[2]
+    templ_usl_val = templ_data_clear[3]
 
-    result = await add_template_to_user(tg_id, templ_name_val, templ_crits_val, templ_mnoj_val)
+    result = await add_template_to_user(tg_id, templ_name_val, templ_crits_val, templ_mnoj_val, templ_usl_val)
     print(f'DEBUG: данные шаблона: {templ_data}')
 
     if result:
         await callback.message.answer(f'Вам добавлена копия шаблона.', reply_markup=main_keyboard())
     else:
-        await callback.message.answer('Не удалось добавить шаблон.', reply_markup=main_keyboard())
+        await callback.message.answer('Не удалось добавить копию шаблона.', reply_markup=main_keyboard())
 
     await state.clear()
