@@ -15,20 +15,26 @@ from assets.command_modules.command_get_templates import Choose_templ
 
 router_create_report = Router()
 
-user_templ_crits = {}
-user_templ_mnoj = {}
 user_templ_name = {}
 
+user_templ_global_score_dict = {}
+
+user_templ_crits = {}
 user_templ_crits_full = {}
-user_templ_mnoj_full = {}
-
 user_templ_crits_score = {}
-user_templ_mnoj_score = {}
-
 user_templ_crits_comm = {}
+
+user_templ_mnoj = {}
+user_templ_mnoj_full = {}
+user_templ_mnoj_what_answer = {}
+user_templ_mnoj_score = {}
 user_templ_mnoj_comm = {}
 
-user_templ_global_score_dict = {}
+user_templ_usl = {}
+user_templ_usl_full = {}
+user_templ_usl_score_if_yes = {}
+user_templ_usl_score_if_no = {}
+user_templ_usl_comm = {}
 
 # Сюда складываются в словарь с ключом data значения ответов пользователя по порядку (ответы на вопросы про критерии, множители)
 user_report = {}
@@ -40,8 +46,15 @@ class Crits(StatesGroup):
 
 
 class Mnoj(StatesGroup):
+    mnoj_what_answer = State()
     mnoj_score = State()
     mnoj_comm = State()
+
+
+class Usl(StatesGroup):
+    usl_score_if_yes = State()
+    usl_score_if_no = State()
+    usl_comm = State()
 
 
 class ReportCreating(StatesGroup):
@@ -60,6 +73,8 @@ async def create_report(message: Message, state: FSMContext):
         user_templ_mnoj_full.pop(tg_id)
     if tg_id in user_templ_crits_full:
         user_templ_crits_full.pop(tg_id)
+    if tg_id in user_templ_usl_full:
+        user_templ_usl_full.pop(tg_id)
 
     templ_list = await get_user_templates(tg_id)
     await message.answer('• Выберите шаблон для отчета',
@@ -83,47 +98,68 @@ async def start_report(callback: CallbackQuery, state: FSMContext):
                 chosen_templ = templ
                 break
 
-        templ_name_val, templ_crit_val, templ_mnoj_val = await get_template_data(None, chosen_templ[0])
+        templ_name_val, templ_crit_val, templ_mnoj_val, templ_usl_val = await get_template_data(None, chosen_templ[0])
         gl_score = await get_template_global_score(chosen_templ[0])
         user_templ_global_score_dict[tg_id] = (chosen_templ[0], gl_score)
         print(user_templ_global_score_dict[tg_id])
 
-        await state.set_state(Crits.crit_score)
-
+        #  Наполняем глобальные списки существующими элементами шаблона
         user_templ_name[tg_id] = templ_name_val
+        if templ_crit_val:
+            user_templ_crits[tg_id] = templ_crit_val
+            if tg_id not in user_templ_crits_full:
+                user_templ_crits_full[tg_id] = templ_crit_val.copy()
         if templ_mnoj_val:
             user_templ_mnoj[tg_id] = templ_mnoj_val
             if tg_id not in user_templ_mnoj_full:
                 user_templ_mnoj_full[tg_id] = templ_mnoj_val.copy()
-        if templ_crit_val:
-            user_templ_crits[tg_id] = templ_crit_val
+        if templ_usl_val:
+            user_templ_mnoj[tg_id] = templ_usl_val
+            if tg_id not in user_templ_usl_full:
+                user_templ_usl_full[tg_id] = templ_usl_val.copy()
+
+        if user_templ_crits[tg_id]:
+            await state.set_state(Crits.crit_score)
+
             await callback.message.edit_text(f'• Введите количество времени в часах сколько вы потратили за межотчетный'
                                                 f' период на критерий "{templ_crit_val[0][0]}".\n'
                                                 f'Например: 2.5')
-            if tg_id not in user_templ_crits_full:
-                user_templ_crits_full[tg_id] = templ_crit_val.copy()
 
-        if templ_crit_val[0][2] == 1:
-            await state.set_state(Crits.crit_comm)
-        elif templ_crit_val[0][2] == 0:
-            # Удаляем критерий из словаря
-            user_templ_crits[tg_id].pop(0)
-            if user_templ_crits[tg_id]:
-                await state.set_state(Crits.crit_score)
-            elif not user_templ_crits[tg_id]:
+            #  Если commentable
+            if templ_crit_val[0][2] == 1:
+                await state.set_state(Crits.crit_comm)
+            elif templ_crit_val[0][2] == 0:
+
+                #  Удаляем критерий из словаря и выбираем дальнейший путь
+                user_templ_crits[tg_id].pop(0)
+                if user_templ_crits[tg_id]:
+                    await state.set_state(Crits.crit_score)
+                elif not user_templ_crits[tg_id]:
+                    if user_templ_usl[tg_id]:
+                        await state.set_state(Usl.usl_score_if_yes)
+                    elif not user_templ_usl[tg_id]:
+                        if user_templ_mnoj[tg_id]:
+                            await state.set_state(Mnoj.mnoj_score)
+                        if not user_templ_mnoj[tg_id]:
+                            await state.set_state(ReportCreating.just_state)
+
+        elif not user_templ_crits[tg_id]:
+            if user_templ_usl[tg_id]:
+                await state.set_state(Usl.usl_score_if_yes)
+            elif not user_templ_usl[tg_id]:
                 if user_templ_mnoj[tg_id]:
                     await state.set_state(Mnoj.mnoj_score)
-                elif not user_templ_mnoj[tg_id]:
+                if not user_templ_mnoj[tg_id]:
                     await state.set_state(ReportCreating.just_state)
 
-        user_report[tg_id] = {'data': []}
+    user_report[tg_id] = {'data': []}
 
 
 @router_create_report.message(Crits.crit_score)
 async def fill_report_crits(message: Message, state: FSMContext):
 
     tg_id = message.from_user.id
-    #  Удаляем критерий из словаря
+
     crit = user_templ_crits[tg_id][0]
 
     #  Запись данных в словарь для формирования отчета в конце
@@ -150,6 +186,7 @@ async def fill_report_crits(message: Message, state: FSMContext):
 async def fill_report_crit_comms(message: Message, state: FSMContext):
 
     tg_id = message.from_user.id
+
     crit = user_templ_crits[tg_id].pop(0)
 
     #  Запись данных в словарь для формирования отчета в конце
@@ -157,12 +194,64 @@ async def fill_report_crit_comms(message: Message, state: FSMContext):
 
     await message.answer(f'• Введите ваш комментарий к критерию "{crit[0]}".')
 
-    if user_templ_crits.get(tg_id):
+    if user_templ_crits[tg_id]:
         await state.set_state(Crits.crit_score)
-    elif not user_templ_crits.get(tg_id):
-        if user_templ_mnoj.get(tg_id):
+    elif not user_templ_crits[tg_id]:
+        if user_templ_usl[tg_id]:
+            await state.set_state(Usl.usl_score_if_yes)
+        elif not user_templ_usl[tg_id]:
+            if user_templ_mnoj[tg_id]:
+                await state.set_state(Mnoj.mnoj_score)
+            if not user_templ_mnoj[tg_id]:
+                await state.set_state(ReportCreating.just_state)
+
+
+@router_create_report.message(Usl.usl_score_if_yes)
+async def fill_report_usl(message: Message, state: FSMContext):
+
+    tg_id = message.from_user.id
+
+    usl = user_templ_usl[tg_id][0]
+
+    #  Запись данных в словарь для формирования отчета в конце
+    user_report[tg_id]['data'].append(message.text)
+
+    await message.answer(f'Совершали ли вы действия, предусмотренные условием "{mnoj[0]}"?\n'
+                         f'• Отправьте "1", если да.\n'
+                         f'• Отправьте "0", если нет.')
+
+    if usl[3] == 1:
+        await state.set_state(Usl.usl_comm)
+    elif mnoj[3] == 0:
+        # Удаляем усл из словаря и идем дальше
+        user_templ_usl[tg_id].pop(0)
+        if user_templ_usl[tg_id]:
+            await state.set_state(Usl.usl_comm)
+        elif not user_templ_usl[tg_id]:
+            if user_templ_mnoj[tg_id]:
+                await state.set_state(Mnoj.mnoj_score)
+            elif not user_templ_mnoj[tg_id]:
+                await state.set_state(ReportCreating.just_state)
+
+
+@router_create_report.message(Usl.usl_comm)
+async def fill_report_mnoj_comms(message: Message, state: FSMContext):
+
+    tg_id = message.from_user.id
+
+    usl = user_templ_usl[tg_id].pop(0)
+
+    #  Запись данных в словарь для формирования отчета в конце
+    user_report[tg_id]['data'].append(message.text)
+
+    await message.answer(f'• Введите ваш комментарий к условию "{usl[0]}".')
+
+    if user_templ_usl[tg_id]:
+        await state.set_state(Usl.usl_comm)
+    elif not user_templ_usl[tg_id]:
+        if user_templ_mnoj[tg_id]:
             await state.set_state(Mnoj.mnoj_score)
-        elif not user_templ_mnoj.get(tg_id):
+        elif not user_templ_mnoj[tg_id]:
             await state.set_state(ReportCreating.just_state)
 
 
@@ -170,7 +259,7 @@ async def fill_report_crit_comms(message: Message, state: FSMContext):
 async def fill_report_mnoj(message: Message, state: FSMContext):
 
     tg_id = message.from_user.id
-    # Удаляем множ из словаря
+    # Удаляем множ из словаря и идем дальше
     mnoj = user_templ_mnoj[tg_id][0]
 
     #  Запись данных в словарь для формирования отчета в конце
