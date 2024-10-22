@@ -8,7 +8,7 @@ from sqlalchemy import Integer, update
 from assets.db_modules.models import User, UserTemplates, TemplateCrit, TemplateMnoj, async_session, AsyncSessionLocal, TemplateUsl
 
 
-async def save_user_template(telegram_id: int, username: str, template_name: str, key_for_generating: str, crits: list, mnojs: list):
+async def save_user_template(telegram_id: int, username: str, template_name: str, key_for_generating: str, crits: list, mnojs: list, usls: list):
     async with async_session() as session:
         async with session.begin():
             # Проверка существования пользователя в базе
@@ -55,9 +55,20 @@ async def save_user_template(telegram_id: int, username: str, template_name: str
                 )
                 session.add(new_mnoj)
 
+                # Сохранение условий
+                for usl in usls:
+                    new_usl = TemplateUsl(
+                        user_template_id=new_template.id,
+                        usl_name=usl['name'],
+                        usl_score=usl['score'],
+                        usl_what_answer=usl['what_answer'],
+                        usl_comment=usl['comment']
+                    )
+                    session.add(new_usl)
+
         await session.commit()  # Сохранение всех изменений
 
-async def edit_user_template(telegram_id: int, username: str, template_name: str, crits: list, mnojs: list, chosen_templ_id: int): # TODO ended this func
+async def edit_user_template(telegram_id: int, username: str, template_name: str, crits: list, mnojs: list, usls: list, chosen_templ_id: int): # TODO ended this func
     async with async_session() as session:
         async with session.begin():
 
@@ -89,6 +100,7 @@ async def edit_user_template(telegram_id: int, username: str, template_name: str
             # Удаляем шаблон и связанные таблы
             await session.execute(delete(TemplateCrit).filter_by(user_template_id=chosen_templ_id))
             await session.execute(delete(TemplateMnoj).filter_by(user_template_id=chosen_templ_id))
+            await session.execute(delete(TemplateUsl).filter_by(user_template_id=chosen_templ_id))
             await session.execute(delete(UserTemplates).filter_by(id=chosen_templ_id))
 
             # И создаем обновленный, записывая очки и ключ с удаленного
@@ -117,11 +129,24 @@ async def edit_user_template(telegram_id: int, username: str, template_name: str
                     user_template_id=new_template.id,
                     mnoj_name=mnoj['name'],
                     mnoj_score=mnoj['score'],
+                    mnoj_what_answer=mnoj['what_answer'],
                     mnoj_comment=mnoj['comment']
                 )
                 session.add(new_mnoj)
 
+            # Сохранение условий
+            for usl in usls:
+                new_usl = TemplateUsl(
+                    user_template_id=new_template.id,
+                    usl_name=usl['name'],
+                    usl_score_if_yes=usl['score_if_yes'],
+                    usl_score_if_no=usl['score_if_no'],
+                    usl_comment=usl['comment']
+                )
+                session.add(new_usl)
+
         await session.commit()  # Сохранение всех изменений
+
 
 async def get_all_telegram_ids() -> list[int]:
     async with AsyncSessionLocal() as session:
@@ -243,7 +268,7 @@ async def get_template_data(key: str, templ_id):
             templ_usl = await session.execute(
                 select(TemplateUsl.usl_name, TemplateUsl.usl_score_if_yes, TemplateUsl.usl_score_if_no, TemplateUsl.usl_comment).filter_by(user_template_id=templ_id_val)
             )
-            templ_usl_val = templ_mnoj.all()
+            templ_usl_val = templ_usl.all()
 
             return templ_name_val, templ_crit_val, templ_mnoj_val, templ_usl_val
 
