@@ -159,11 +159,11 @@ async def start_report(callback: CallbackQuery, state: FSMContext):
                  f'• Отправьте "0", если нет.')
 
                 #  Если commentable
-                if templ_usl_val[0][2] == 1:
+                if templ_usl_val[0][3] == 1:
                     await state.set_state(Usl.usl_comm)
-                elif templ_usl_val[0][2] == 0:
+                elif templ_usl_val[0][3] == 0:
 
-                    #  Удаляем критерий из словаря и выбираем дальнейший путь
+                    #  Удаляем условие из словаря и выбираем дальнейший путь
                     user_templ_usl[tg_id].pop(0)
                     if user_templ_usl.get(tg_id):
                         await state.set_state(Usl.usl_score_if_yes)
@@ -269,7 +269,7 @@ async def fill_report_usl(event: types.Message | types.CallbackQuery, state: FSM
 
 
 @router_create_report.message(Usl.usl_comm)
-async def fill_report_mnoj_comms(message: Message, state: FSMContext):
+async def fill_report_usl_comms(message: Message, state: FSMContext):
 
     tg_id = message.from_user.id
 
@@ -281,7 +281,7 @@ async def fill_report_mnoj_comms(message: Message, state: FSMContext):
     await message.answer(f'• Введите ваш комментарий к условию "{usl[0]}".')
 
     if user_templ_usl.get(tg_id):
-        await state.set_state(Usl.usl_comm)
+        await state.set_state(Usl.usl_score_if_yes)
     elif not user_templ_usl.get(tg_id):
         if user_templ_mnoj.get(tg_id):
             await state.set_state(Mnoj.mnoj_score)
@@ -332,9 +332,10 @@ async def fill_report_mnoj_comms(message: Message, state: FSMContext):
 
 
 @router_create_report.message(ReportCreating.just_state)
-async def report_creating(message: Message, state: FSMContext): # TODO need to continue from here and need to fix feats of get usls
+async def report_creating(message: Message, state: FSMContext): # TODO need to continue from here
 
     tg_id = message.from_user.id
+    tg_username = message.from_user.username
 
     #  Запись данных в словарь для формирования отчета в конце
     user_report[tg_id]['data'].append(message.text)
@@ -343,25 +344,37 @@ async def report_creating(message: Message, state: FSMContext): # TODO need to c
     print(f'DEBUG: Словарь user_report с ответами на вопросы отчета по порядку: {user_report[tg_id]}')
 
     scores_sum_for_today = 0
-    if user_templ_crits_full:
-        user_crits = user_templ_crits_full[tg_id]
-
     count_mnoj = 0
+    count_crits = 0
+    count_usls = 0
 
-    if user_templ_mnoj_full.get(tg_id):
+    try:
+        user_crits = user_templ_crits_full[tg_id]
+        count_crits = len(user_crits)
+    except KeyError:
+        pass
+
+    try:
+        user_usls = user_templ_usl_full[tg_id]
+        count_usls = len(user_usls)
+    except KeyError:
+        pass
+
+    try:
         user_mnoj = user_templ_mnoj_full[tg_id]
         count_mnoj = len(user_mnoj)
-    else:
-        user_mnoj = 0
+    except KeyError:
+        pass
+
 
     user_report_data = user_report[tg_id]['data']
-    count_crits = len(user_crits)
 
     output_crits = []
     output_mnoj = []
-    scores_sum_for_today = 0
+    output_usls = []
 
-    # Сбор критериев в шаблон
+
+    # Сбор критериев в шаблон если они есть
     if count_crits != 0:
         for crit_num in range(count_crits):
 
@@ -392,6 +405,39 @@ async def report_creating(message: Message, state: FSMContext): # TODO need to c
 
         # Соединяем все строки с критериями в одну с помощью join
         result_crits = "\n".join(output_crits)
+
+    # Сбор условий в шаблон если они есть
+    if count_usls != 0:
+        for usl_num in range(count_usls):
+
+            usl = user_usls[usl_num]
+
+            usl_name = str(usl[0])
+            usl_score = float(usl[1])
+            usl_comment = int(usl[2])
+
+            scores_sum_for_today += (usl_score * float(user_report_data[0]))
+
+            if usl_comment == 1:
+                output_usls.append(
+                    f'• {usl_name}:\n'
+                    f'{float(user_report_data[0])} hours = {usl_score * float(user_report_data[0])} scores\n'
+                    f'Комментарий: "{user_report_data[1]}"'
+                )
+                user_report_data.pop(0)
+                user_report_data.pop(0)
+            else:
+                output_usls.append(
+                    f"• {usl_name}:\n"
+                    f"{float(user_report_data[0])} hours = {usl_score * float(user_report_data[0])} scores"
+                )
+                user_report_data.pop(0)
+
+            print(f'DEBUG: Словарь user_report с ответами на вопросы отчета по порядку: {user_report[tg_id]}')
+
+        # Соединяем все строки с критериями в одну с помощью join
+        result_usls = "\n".join(output_usls)
+
 
     # Сбор множителей в шаблон
     scores_sum_for_today_with_mnoj = scores_sum_for_today
