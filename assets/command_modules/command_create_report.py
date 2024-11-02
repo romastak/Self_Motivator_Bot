@@ -233,23 +233,26 @@ async def fill_report_crit_comms(message: Message, state: FSMContext):
                 await state.set_state(ReportCreating.just_state)
 
 
+@router_create_report.callback_query(Usl.usl_score_if_yes)
 @router_create_report.message(Usl.usl_score_if_yes)
-async def fill_report_usl(message: Message, callback: CallbackQuery, state: FSMContext):
+async def fill_report_usl(event: types.Message | types.CallbackQuery, state: FSMContext):
     print('тест2')
-    tg_id = message.from_user.id
+    tg_id = event.from_user.id
 
     usl = user_templ_usl[tg_id][0]
 
     #  Запись данных в словарь для формирования отчета в конце
-    user_report[tg_id]['data'].append(message.text)
+    user_report[tg_id]['data'].append(event.text)
 
-    await message.answer(f'Совершали ли вы действия, предусмотренные условием "{mnoj[0]}"?\n'
-                         f'• Отправьте "1", если да.\n'
-                         f'• Отправьте "0", если нет.')
+    if isinstance(event, types.Message):
+        await event.answer(f'Совершали ли вы действия, предусмотренные условием "{usl[0]}"?\n'
+                             f'• Отправьте "1", если да.\n'
+                             f'• Отправьте "0", если нет.')
 
-    await callback.message.edit_text(f'Совершали ли вы действия, предусмотренные условием "{mnoj[0]}"?\n'
-                         f'• Отправьте "1", если да.\n'
-                         f'• Отправьте "0", если нет.')
+    elif isinstance(event, types.CallbackQuery):
+        await event.message.edit_text(f'Совершали ли вы действия, предусмотренные условием "{usl[0]}"?\n'
+                             f'• Отправьте "1", если да.\n'
+                             f'• Отправьте "0", если нет.')
 
     if usl[3] == 1:
         await state.set_state(Usl.usl_comm)
@@ -329,7 +332,7 @@ async def fill_report_mnoj_comms(message: Message, state: FSMContext):
 
 
 @router_create_report.message(ReportCreating.just_state)
-async def report_creating(message: Message, state: FSMContext):
+async def report_creating(message: Message, state: FSMContext): # TODO need to continue from here and need to fix feats of get usls
 
     tg_id = message.from_user.id
 
@@ -340,7 +343,8 @@ async def report_creating(message: Message, state: FSMContext):
     print(f'DEBUG: Словарь user_report с ответами на вопросы отчета по порядку: {user_report[tg_id]}')
 
     scores_sum_for_today = 0
-    user_crits = user_templ_crits_full[tg_id]
+    if user_templ_crits_full:
+        user_crits = user_templ_crits_full[tg_id]
 
     count_mnoj = 0
 
