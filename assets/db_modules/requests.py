@@ -55,16 +55,16 @@ async def save_user_template(telegram_id: int, username: str, template_name: str
                 )
                 session.add(new_mnoj)
 
-                # Сохранение условий
-                for usl in usls:
-                    new_usl = TemplateUsl(
-                        user_template_id=new_template.id,
-                        usl_name=usl['name'],
-                        usl_score=usl['score'],
-                        usl_what_answer=usl['what_answer'],
-                        usl_comment=usl['comment']
-                    )
-                    session.add(new_usl)
+            # Сохранение условий
+            for usl in usls:
+                new_usl = TemplateUsl(
+                    user_template_id=new_template.id,
+                    usl_name=usl['name'],
+                    usl_score_if_yes=usl['usl_score_if_yes'],
+                    usl_score_if_no=usl['usl_score_if_no'],
+                    usl_comment=usl['comment']
+                )
+                session.add(new_usl)
 
         await session.commit()  # Сохранение всех изменений
 

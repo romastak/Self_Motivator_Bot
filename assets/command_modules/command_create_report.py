@@ -40,6 +40,14 @@ user_templ_usl_comm = {}
 user_report = {}
 
 
+def need_to_accepting_mnoj(scores_sum_for_today, templ_global_score, scores_sum_for_today_with_mnoj):
+    if scores_sum_for_today <= 0:
+        templ_global_score_with_changes = float(templ_global_score) + float(scores_sum_for_today)
+    else:
+        templ_global_score_with_changes = float(templ_global_score) + float(scores_sum_for_today_with_mnoj)
+    return templ_global_score_with_changes
+
+
 class Crits(StatesGroup):
     crit_score = State()
     crit_comm = State()
@@ -109,6 +117,8 @@ async def start_report(callback: CallbackQuery, state: FSMContext):
         user_templ_usl[tg_id] = None
         user_templ_mnoj[tg_id] = None
         user_templ_name[tg_id] = templ_name_val
+
+        print(f'DEBUG: templ_usl_val: {templ_usl_val}, user_templ_usl: {user_templ_usl}')
 
         #  Наполняем глобальные списки существующими элементами шаблона
         if templ_crit_val:
@@ -203,10 +213,13 @@ async def fill_report_crits(message: Message, state: FSMContext):
         if user_templ_crits.get(tg_id):
             await state.set_state(Crits.crit_score)
         elif not user_templ_crits.get(tg_id):
-            if user_templ_mnoj.get(tg_id):
-                await state.set_state(Mnoj.mnoj_score)
-            elif not user_templ_mnoj.get(tg_id):
-                await state.set_state(ReportCreating.just_state)
+            if user_templ_usl.get(tg_id):
+                await state.set_state(Usl.usl_score_if_yes)
+            elif not user_templ_usl.get(tg_id):
+                if user_templ_mnoj.get(tg_id):
+                    await state.set_state(Mnoj.mnoj_score)
+                elif not user_templ_mnoj.get(tg_id):
+                    await state.set_state(ReportCreating.just_state)
 
 
 @router_create_report.message(Crits.crit_comm)
@@ -256,11 +269,11 @@ async def fill_report_usl(event: types.Message | types.CallbackQuery, state: FSM
 
     if usl[3] == 1:
         await state.set_state(Usl.usl_comm)
-    elif mnoj[3] == 0:
+    elif usl[3] == 0:
         # Удаляем усл из словаря и идем дальше
         user_templ_usl[tg_id].pop(0)
         if user_templ_usl.get(tg_id):
-            await state.set_state(Usl.usl_comm)
+            await state.set_state(Usl.usl_score_if_yes)
         elif not user_templ_usl.get(tg_id):
             if user_templ_mnoj.get(tg_id):
                 await state.set_state(Mnoj.mnoj_score)
@@ -332,7 +345,7 @@ async def fill_report_mnoj_comms(message: Message, state: FSMContext):
 
 
 @router_create_report.message(ReportCreating.just_state)
-async def report_creating(message: Message, state: FSMContext): # TODO need to continue from here
+async def report_creating(message: Message, state: FSMContext):
 
     tg_id = message.from_user.id
     tg_username = message.from_user.username
@@ -340,13 +353,17 @@ async def report_creating(message: Message, state: FSMContext): # TODO need to c
     #  Запись данных в словарь для формирования отчета в конце
     user_report[tg_id]['data'].append(message.text)
 
-    need_to_output_mnoj_string = False
     print(f'DEBUG: Словарь user_report с ответами на вопросы отчета по порядку: {user_report[tg_id]}')
 
+    # Определяем переменные
+    need_to_output_mnoj_string = False
     scores_sum_for_today = 0
     count_mnoj = 0
     count_crits = 0
     count_usls = 0
+    result_crits = 0
+    result_mnojs = 0
+    result_usls = 0
 
     try:
         user_crits = user_templ_crits_full[tg_id]
@@ -365,7 +382,6 @@ async def report_creating(message: Message, state: FSMContext): # TODO need to c
         count_mnoj = len(user_mnoj)
     except KeyError:
         pass
-
 
     user_report_data = user_report[tg_id]['data']
 
@@ -410,36 +426,56 @@ async def report_creating(message: Message, state: FSMContext): # TODO need to c
     if count_usls != 0:
         for usl_num in range(count_usls):
 
+            yes_or_no = 0
+            usl_score_current = 0
+
             usl = user_usls[usl_num]
 
-            usl_name = str(usl[0])
-            usl_score = float(usl[1])
-            usl_comment = int(usl[2])
+            print(f'test user_usls: {user_usls}')
+            print(f'test user_report_data: {user_report_data}')
 
-            scores_sum_for_today += (usl_score * float(user_report_data[0]))
+            usl_name = str(usl[0])
+            usl_score_if_yes = float(usl[1])
+            usl_score_if_no = float(usl[2])
+            usl_comment = int(usl[3])
+
+            if user_report_data[0] == '1':
+                scores_sum_for_today += usl_score_if_yes
+                usl_score_current = usl_score_if_yes
+                yes_or_no = "Да"
+            elif user_report_data[0] == '0':
+                scores_sum_for_today += usl_score_if_no
+                usl_score_current = usl_score_if_no
+                yes_or_no = "Нет"
+
+            if usl_score_current < 0:
+                get_or_not = 'Ваши очки уменьшились на'
+            if usl_score_current == 0:
+                get_or_not = 'Ваши очки не изменились'
+            if usl_score_current > 0:
+                get_or_not = 'Ваши очки увеличились на'
 
             if usl_comment == 1:
                 output_usls.append(
-                    f'• {usl_name}:\n'
-                    f'{float(user_report_data[0])} hours = {usl_score * float(user_report_data[0])} scores\n'
+                    f'• {usl_name}: {yes_or_no}\n'
+                    f'{get_or_not} {abs(usl_score_current)}.\n'
                     f'Комментарий: "{user_report_data[1]}"'
                 )
                 user_report_data.pop(0)
                 user_report_data.pop(0)
-            else:
+            elif usl_comment == 0:
                 output_usls.append(
-                    f"• {usl_name}:\n"
-                    f"{float(user_report_data[0])} hours = {usl_score * float(user_report_data[0])} scores"
+                    f'• {usl_name}: {yes_or_no}\n'
+                    f'{get_or_not} {abs(usl_score_current)}.'
                 )
                 user_report_data.pop(0)
 
             print(f'DEBUG: Словарь user_report с ответами на вопросы отчета по порядку: {user_report[tg_id]}')
 
-        # Соединяем все строки с критериями в одну с помощью join
+        # Соединяем все строки с условиями в одну с помощью join
         result_usls = "\n".join(output_usls)
 
-
-    # Сбор множителей в шаблон
+    # Сбор множителей в шаблон если они есть
     scores_sum_for_today_with_mnoj = scores_sum_for_today
     if count_mnoj != 0:
 
@@ -533,9 +569,12 @@ async def report_creating(message: Message, state: FSMContext): # TODO need to c
                         )
                         user_report_data.pop(0)
 
-            # Применяем множитель только если ответ "Нет"
+            # Применяем множитель только если ответ "Нет" и только если сумма очков не отрицательна
             if need_to_append:
-                scores_sum_for_today_with_mnoj *= float(mnoj_score) # Применяем множитель к сумме очков
+                if scores_sum_for_today <= 0:
+                    scores_sum_for_today_with_mnoj = 0
+                else:
+                    scores_sum_for_today_with_mnoj *= float(mnoj_score) # Применяем множитель к сумме очков
                 need_to_output_mnoj_string = True
 
         print(f'DEBUG: Словарь user_report с ответами на вопросы отчета по порядку: {user_report[tg_id]}')
@@ -548,65 +587,160 @@ async def report_creating(message: Message, state: FSMContext): # TODO need to c
 
     def mnoj_string_in_report(need_to_output_mnoj_string, scores_sum_for_today_with_mnoj):
         if need_to_output_mnoj_string:
-            return f"• Применение множителя. Итоговая сумма баллов: {float(scores_sum_for_today_with_mnoj)}\n"
+            if scores_sum_for_today <= 0:
+                scores_sum_for_today_with_mnoj = 0
+                return f'• Множитель не применен, т.к. сумма баллов за межотчетный период меньше или равна 0\n'
+            else:
+                return f'• Применение множителя. Итоговая сумма баллов: {float(scores_sum_for_today_with_mnoj)}\n'
         else:
-            return ""
+            return ''
 
     tg_username = message.from_user.first_name
     templ_id = user_templ_global_score_dict[tg_id][0]
     templ_global_score = user_templ_global_score_dict[tg_id][1]
 
     # Выводим результат с учетом примененных множителей
-    if count_mnoj != 0:
 
-        mnoj_string_output = mnoj_string_in_report(need_to_output_mnoj_string, scores_sum_for_today_with_mnoj)
+    if result_crits:
+        if result_mnojs:
+            if result_usls:
+                mnoj_string_output = mnoj_string_in_report(need_to_output_mnoj_string, scores_sum_for_today_with_mnoj)
+                templ_global_score_with_changes = need_to_accepting_mnoj(scores_sum_for_today, templ_global_score, scores_sum_for_today_with_mnoj)
+                result_save_in_db = await change_template_global_score(templ_id, float(templ_global_score_with_changes))
 
-        templ_global_score_with_changes = float(templ_global_score) + float(scores_sum_for_today_with_mnoj)
-        result_save_in_db = await change_template_global_score(templ_id, float(templ_global_score_with_changes))
+                if result_save_in_db:
+                    await message.answer(
+                        f"Отчет: {tg_username}\n"
+                        f"................................................\n"
+                        f"Критерии:\n"
+                        f"\n"
+                        f"{result_crits}\n"
+                        f"................................................\n"
+                        f"Условия:\n"
+                        f"\n"
+                        f"{result_usls}\n"
+                        f"................................................\n"
+                        f"Множители:\n"
+                        f"\n"
+                        f"{result_mnojs}\n"
+                        f"................................................\n"
+                        f"Итог:\n"
+                        f"\n"
+                        f"• Сумма баллов за критерии за межотчетный период: {scores_sum_for_today}\n"
+                        f"{mnoj_string_output}"
+                        f"• Глобальная сумма баллов: {templ_global_score_with_changes}", reply_markup=main_keyboard()
+                    )
+                    await message.answer('Перешлите отчет в группу вашей команды мотивации')
+                else:
+                    await message.answer('Не удалось обновить глобальные очки в шаблоне')
+                    
+    if result_crits:
+        if not result_mnojs:
+            if result_usls:
+                templ_global_score_with_changes = float(templ_global_score) + float(scores_sum_for_today)
+                result_save_in_db = await change_template_global_score(templ_id, float(templ_global_score_with_changes))
 
-        if result_save_in_db:
-            await message.answer(
-                f"Отчет: {tg_username}\n"
-                f"................................................\n"
-                f"Критерии:\n"
-                f"\n"
-                f"{result_crits}\n"
-                f"................................................\n"
-                f"Множители:\n"
-                f"\n"
-                f"{result_mnojs}\n"
-                f"................................................\n"
-                f"Итог:\n"
-                f"\n"
-                f"• Сумма баллов за критерии за межотчетный период: {scores_sum_for_today}\n"
-                f"{mnoj_string_output}"
-                f"• Глобальная сумма баллов: {templ_global_score_with_changes}", reply_markup=main_keyboard()
-            )
-            await message.answer('Перешлите отчет в группу вашей команды мотивации')
-        else:
-            await message.answer('Не удалось обновить глобальные очки в шаблоне')
+                if result_save_in_db:
+                    await message.answer(
+                        f"Отчет: {tg_username}\n"
+                        f"................................................\n"
+                        f"Критерии:\n"
+                        f"\n"
+                        f"{result_crits}\n"
+                        f"................................................\n"
+                        f"Условия:\n"
+                        f"\n"
+                        f"{result_usls}\n"
+                        f"................................................\n"
+                        f"Итог:\n"
+                        f"\n"
+                        f"• Сумма баллов за критерии за межотчетный период: {scores_sum_for_today}\n"
+                        f"• Глобальная сумма баллов: {templ_global_score_with_changes}", reply_markup=main_keyboard()
+                    )
+                    await message.answer('Перешлите отчет в группу вашей команды мотивации')
+                else:
+                    await message.answer('Не удалось обновить глобальные очки в шаблоне')
 
-    else:
+    if not result_crits:
+        if not result_mnojs:
+            if result_usls:
+                templ_global_score_with_changes = float(templ_global_score) + float(scores_sum_for_today)
+                result_save_in_db = await change_template_global_score(templ_id, float(templ_global_score_with_changes))
 
-        templ_global_score_with_changes = float(templ_global_score) + float(scores_sum_for_today)
-        result_save_in_db = await change_template_global_score(templ_id, float(templ_global_score_with_changes))
+                if result_save_in_db:
+                    await message.answer(
+                        f"Отчет: {tg_username}\n"
+                        f"................................................\n"
+                        f"Условия:\n"
+                        f"\n"
+                        f"{result_usls}\n"
+                        f"................................................\n"
+                        f"Итог:\n"
+                        f"\n"
+                        f"• Сумма баллов за критерии за межотчетный период: {scores_sum_for_today}\n"
+                        f"• Глобальная сумма баллов: {templ_global_score_with_changes}", reply_markup=main_keyboard()
+                    )
+                    await message.answer('Перешлите отчет в группу вашей команды мотивации')
+                else:
+                    await message.answer('Не удалось обновить глобальные очки в шаблоне')
 
-        if result_save_in_db:
-            await message.answer(
-                f"Отчет: {tg_username}\n"
-                f"................................................\n"
-                f"Критерии:\n"
-                f"\n"
-                f"{result_crits}\n"
-                f"................................................\n"
-                f"Итог:\n"
-                f"\n"
-                f"• Итоговая сумма баллов за межотчетный период: {scores_sum_for_today}\n"
-                f"• Глобальная сумма баллов: {templ_global_score_with_changes}", reply_markup=main_keyboard()
-            )
-            await message.answer('Перешлите отчет в группу вашей команды мотивации')
-        else:
-            await message.answer('Не удалось обновить глобальные очки в шаблоне')
+    if result_crits:
+        if result_mnojs:
+            if not result_usls:
+                mnoj_string_output = mnoj_string_in_report(need_to_output_mnoj_string, scores_sum_for_today_with_mnoj)
+                templ_global_score_with_changes = need_to_accepting_mnoj(scores_sum_for_today, templ_global_score, scores_sum_for_today_with_mnoj)
+                result_save_in_db = await change_template_global_score(templ_id, float(templ_global_score_with_changes))
+
+                if result_save_in_db:
+                    await message.answer(
+                        f"Отчет: {tg_username}\n"
+                        f"................................................\n"
+                        f"Критерии:\n"
+                        f"\n"
+                        f"{result_crits}\n"
+                        f"................................................\n"
+                        f"Множители:\n"
+                        f"\n"
+                        f"{result_mnojs}\n"
+                        f"................................................\n"
+                        f"Итог:\n"
+                        f"\n"
+                        f"• Сумма баллов за критерии за межотчетный период: {scores_sum_for_today}\n"
+                        f"{mnoj_string_output}"
+                        f"• Глобальная сумма баллов: {templ_global_score_with_changes}", reply_markup=main_keyboard()
+                    )
+                    await message.answer('Перешлите отчет в группу вашей команды мотивации')
+                else:
+                    await message.answer('Не удалось обновить глобальные очки в шаблоне')
+
+    if not result_crits:
+        if result_mnojs:
+            if result_usls:
+                mnoj_string_output = mnoj_string_in_report(need_to_output_mnoj_string, scores_sum_for_today_with_mnoj)
+                templ_global_score_with_changes = need_to_accepting_mnoj(scores_sum_for_today, templ_global_score, scores_sum_for_today_with_mnoj)
+                result_save_in_db = await change_template_global_score(templ_id, float(templ_global_score_with_changes))
+
+                if result_save_in_db:
+                    await message.answer(
+                        f"Отчет: {tg_username}\n"
+                        f"................................................\n"
+                        f"Условия:\n"
+                        f"\n"
+                        f"{result_usls}\n"
+                        f"................................................\n"
+                        f"Множители:\n"
+                        f"\n"
+                        f"{result_mnojs}\n"
+                        f"................................................\n"
+                        f"Итог:\n"
+                        f"\n"
+                        f"• Сумма баллов за критерии за межотчетный период: {scores_sum_for_today}\n"
+                        f"{mnoj_string_output}"
+                        f"• Глобальная сумма баллов: {templ_global_score_with_changes}", reply_markup=main_keyboard()
+                    )
+                    await message.answer('Перешлите отчет в группу вашей команды мотивации')
+                else:
+                    await message.answer('Не удалось обновить глобальные очки в шаблоне')
 
     # Очищение всех состояний
     await state.clear()

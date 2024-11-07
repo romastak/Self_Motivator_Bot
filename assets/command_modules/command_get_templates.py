@@ -164,16 +164,16 @@ async def look_at_the_struct_func(callback: CallbackQuery, state: FSMContext):
                 usl_comment_word = 'Нет'
 
             if float(usl_score_if_yes) < 0:
-                final_val_yes = f'уменьшатся на {usl_score_if_yes}'
+                final_val_yes = f'уменьшатся на {abs(usl_score_if_yes)}'
             elif float(usl_score_if_yes) > 0:
-                final_val_yes = f'увеличатся на {usl_score_if_yes}'
+                final_val_yes = f'увеличатся на {abs(usl_score_if_yes)}'
             elif float(usl_score_if_yes) == 0:
                 final_val_yes = 'не изменятся.'
 
             if float(usl_score_if_no) < 0:
-                final_val_no = f'уменьшатся на {usl_score_if_no}'
+                final_val_no = f'уменьшатся на {abs(usl_score_if_no)}'
             elif float(usl_score_if_no) > 0:
-                final_val_no = f'увеличатся на {usl_score_if_no}'
+                final_val_no = f'увеличатся на {abs(usl_score_if_no)}'
             elif float(usl_score_if_no) == 0:
                 final_val_no = 'не изменятся.'
 

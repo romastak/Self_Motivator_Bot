@@ -23,7 +23,7 @@ def create_template_keyboard():
             [KeyboardButton(text="+ Добавить множитель"), KeyboardButton(text="- Удалить множитель")],
             [KeyboardButton(text="+ Добавить условие"), KeyboardButton(text="- Удалить условие")],
             [KeyboardButton(text="Посмотреть структуру шаблона")],
-            [KeyboardButton(text="Протестировать шаблон случайными значениями")],
+            # [KeyboardButton(text="Протестировать шаблон случайными значениями")],
             [KeyboardButton(text="Сохранить шаблон")],
             [KeyboardButton(text="Выйти без сохранения")],
         ],
@@ -37,6 +37,15 @@ def delete_crit_keyboard(crits_list):
     n = 0
     for el in crits_list:
         keyboard.add(InlineKeyboardButton(text=el, callback_data=str("crit_num_" + str(n))))
+        n += 1
+    return keyboard.adjust(1).as_markup() # Сколько будет кнопок в ряду
+
+
+def delete_usl_keyboard(usls_list):
+    keyboard = InlineKeyboardBuilder()
+    n = 0
+    for el in usls_list:
+        keyboard.add(InlineKeyboardButton(text=el, callback_data=str("usl_num_" + str(n))))
         n += 1
     return keyboard.adjust(1).as_markup() # Сколько будет кнопок в ряду
 
