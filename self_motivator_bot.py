@@ -53,5 +53,3 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("Остановка бота")
-
-#  TODO need to finished usl funcs and moduls

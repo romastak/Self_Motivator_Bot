@@ -8,20 +8,42 @@ from sqlalchemy import Integer, update
 from assets.db_modules.models import User, UserTemplates, TemplateCrit, TemplateMnoj, async_session, AsyncSessionLocal, TemplateUsl
 
 
+async def add_tg_user(tg_id, username):
+    async with async_session() as session:
+        async with session.begin():
+            new_user = User(tg_id=tg_id, username=username)
+            session.add(new_user)
+            await session.flush()  # Получаем ID пользователя
+            user_id = new_user.id
+            return user_id
+
+
+# Проверка существования юзера в базе
+async def check_user_in_db(session, telegram_id):
+    user_stmt = select(User).where(User.tg_id == telegram_id)
+    result = await session.execute(user_stmt)
+    user = result.scalars().first()
+    return user
+
+
+# Проверка существования юзера в базе с созданием сессии
+async def check_user_in_db_session(tg_id):
+    async with async_session() as session:
+        async with session.begin():
+            user_stmt = select(User).where(User.tg_id == tg_id)
+            result = await session.execute(user_stmt)
+            user = result.scalars().first()
+            return user
+
+
 async def save_user_template(telegram_id: int, username: str, template_name: str, key_for_generating: str, crits: list, mnojs: list, usls: list):
     async with async_session() as session:
         async with session.begin():
-            # Проверка существования пользователя в базе
-            user_stmt = select(User).where(User.tg_id == telegram_id)
-            result = await session.execute(user_stmt)
-            user = result.scalars().first()
+
+            user = await check_user_in_db(session=session, telegram_id=telegram_id)
 
             if not user:
-                # Если пользователя нет в базе, нужно его создать
-                new_user = User(tg_id=telegram_id, username=username)  # username можно взять из другого места
-                session.add(new_user)
-                await session.flush()  # Получаем ID пользователя
-                user_id = new_user.id
+                user_id = await add_tg_user(tg_id=telegram_id, username=username)
             else:
                 user_id = user.id
 
@@ -60,8 +82,8 @@ async def save_user_template(telegram_id: int, username: str, template_name: str
                 new_usl = TemplateUsl(
                     user_template_id=new_template.id,
                     usl_name=usl['name'],
-                    usl_score_if_yes=usl['usl_score_if_yes'],
-                    usl_score_if_no=usl['usl_score_if_no'],
+                    usl_score_if_yes=usl['score_if_yes'],
+                    usl_score_if_no=usl['score_if_no'],
                     usl_comment=usl['comment']
                 )
                 session.add(new_usl)

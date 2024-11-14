@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/../PC_control_telegram_bot/.idea/PC_control_telegram_bot.iml" filepath="$PROJECT_DIR$/../PC_control_telegram_bot/.idea/PC_control_telegram_bot.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/Self Motivator Bot.iml" filepath="$PROJECT_DIR$/.idea/Self Motivator Bot.iml" />
     </modules>
   </component>

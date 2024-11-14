@@ -915,7 +915,7 @@ async def cmd_save_templ(message: Message, state: FSMContext):
         await message.answer("Шаблон пуст.")
 
 @router_cmd_save_templ.message(SaveTemplate.waiting_for_template_name)
-async def get_template_name(message: Message, state: FSMContext):
+async def cmd_save_templ_done(message: Message, state: FSMContext):
     template_name = message.text  # Получаем имя шаблона от пользователя
     telegram_id = message.from_user.id
     key_for_generating = str(random.randint(1000000000, 9999999999))
