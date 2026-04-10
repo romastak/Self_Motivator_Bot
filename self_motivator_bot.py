@@ -19,7 +19,7 @@ from assets.db_modules.requests import get_all_telegram_ids
 
 
 # Инициализация бота и диспетчера
-bot = Bot(token="7266990703:AAE58wOTTLQsAU05jV0Exh8ODRz29ljqSMM")
+bot = Bot(token="###")
 dp = Dispatcher() # Это основной роутер, работа происходит через него, его задача обрабатывать updates
 
 # Отправляет запросы на сервера телеграма, если ответы есть, сервер отдаст, если нет ответа, то метод будет ожидать ответа
